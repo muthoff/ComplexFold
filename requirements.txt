@@ -10,3 +10,4 @@ ml-collections==0.1.0
 numpy==1.19.5
 scipy==1.7.0
 tensorflow-cpu==2.5.0
+matplotlib

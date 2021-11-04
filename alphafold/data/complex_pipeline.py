@@ -169,25 +169,30 @@ class DataPipeline:
                template_featurizer: templates.TemplateHitFeaturizer,
                use_small_bfd: bool,
                mgnify_max_hits: int = 501,
-               uniref_max_hits: int = 10000):
+               uniref_max_hits: int = 10000,
+               n_cpu: int = 4):
     """Constructs a feature dict for a given FASTA file."""
     self._use_small_bfd = use_small_bfd
     self.jackhmmer_uniref90_runner = jackhmmer.Jackhmmer(
         binary_path=jackhmmer_binary_path,
-        database_path=uniref90_database_path)
+        database_path=uniref90_database_path,
+        n_cpu=n_cpu)
     if use_small_bfd:
       self.jackhmmer_small_bfd_runner = jackhmmer.Jackhmmer(
           binary_path=jackhmmer_binary_path,
-          database_path=small_bfd_database_path)
+          database_path=small_bfd_database_path,
+          n_cpu=n_cpu)
       self.bfd_runner = self.jackhmmer_small_bfd_runner
     else:
       self.hhblits_bfd_uniclust_runner = hhblits.HHBlits(
           binary_path=hhblits_binary_path,
-          databases=[bfd_database_path, uniclust30_database_path])
+          databases=[bfd_database_path, uniclust30_database_path],
+          n_cpu=n_cpu)
       self.bfd_runner = self.hhblits_bfd_uniclust_runner
     self.jackhmmer_mgnify_runner = jackhmmer.Jackhmmer(
         binary_path=jackhmmer_binary_path,
-        database_path=mgnify_database_path)
+        database_path=mgnify_database_path,
+        n_cpu=n_cpu)
     self.hhsearch_pdb70_runner = hhsearch.HHSearch(
         binary_path=hhsearch_binary_path,
         databases=[pdb70_database_path])
@@ -196,14 +201,62 @@ class DataPipeline:
     self.mgnify_max_hits = mgnify_max_hits
     self.uniref_max_hits = uniref_max_hits
     
-    
+
+  def get_msa(self, type, heteromer, msa_output_dir):
+    if type == 'uniref90' or type == 'mgnify':
+      file_name = heteromer.description + f'_{type}_hits.sto'
+    elif type == 'small_bfd' or type == 'bfd_uniclust':
+      file_name = heteromer.description + f'_{type}_hits.a3m'
+    elif type == 'custom-sto':
+      file_name = heteromer.description + f'_{type}_hits.sto'
+    elif type == 'custom-a3m':
+      file_name = heteromer.description + f'_{type}_hits.a3m'
+    else:
+      raise TypeError('Wrong MSA type chosen.')
+
+    if file_name in os.listdir(msa_output_dir):
+      logging.info(f'Skip {type} search and take local MSA: {file_name}')
+      with open(os.path.join(msa_output_dir, file_name), 'r') as f:
+        alignment = f.read()
+
+    elif file_name in os.listdir(self.msa_library_dir):
+      logging.info(f'Skip {type} search and take library MSA: {file_name}')
+      with open(os.path.join(self.msa_library_dir, file_name), 'r') as f:
+        alignment = f.read()
+
+    elif type.startswith('custom'):
+      logging.info(f'No custom MSA provided: {file_name}')
+      return None
+
+    else:
+      if type == 'uniref90':
+        jackhmmer_uniref90_result = self.jackhmmer_uniref90_runner.query(heteromer.fasta_path)[0]
+        alignment = jackhmmer_uniref90_result['sto']
+
+      elif type == 'mgnify':
+        jackhmmer_mgnify_result = self.jackhmmer_mgnify_runner.query(heteromer.fasta_path)[0]
+        alignment = jackhmmer_mgnify_result['sto']
+
+      elif type == 'small_bfd':
+        jackhmmer_small_bfd_result = self.jackhmmer_small_bfd_runner.query(heteromer.fasta_path)[0]
+        alignment = jackhmmer_small_bfd_result['sto']
+
+      elif type == 'bfd_uniclust':
+        hhblits_bfd_uniclust_result = self.hhblits_bfd_uniclust_runner.query(heteromer.fasta_path)
+        alignment = hhblits_bfd_uniclust_result['a3m']
+
+      with open(os.path.join(msa_output_dir, file_name), 'w') as f:
+        f.write(alignment)
+
+    return alignment
+
+
   def process(self,
               input_fasta_path: str,
               output_dir: str,
               msa_output_dir: str,
               heteromer_output_dir: str) -> FeatureDict:
     """Runs alignment tools on the input sequence and creates features."""
-    
     msa_depth = {'Uniref90': 0, 'MGnify': 0, 'Small BFD': 0, 'BFD-Uniclust': 0, 'Total unique': 0}
 
     with open(input_fasta_path) as f:
@@ -219,119 +272,65 @@ class DataPipeline:
     template_search_results_collecter = templates.TemplateSearchResultsCollecter()
 
     for n, heteromer in enumerate(complex.heteromers):
+      msas_, deletion_matrices_ = [], []
+
       if heteromer.description == 'Peptide':
         logging.info('Skip MSAs for peptides.')
         continue
     
       logging.info('Get MSAs and templates for: ' + heteromer.description)
         
+      ## custom
+      for type in ('sto', 'a3m'):
+        custom_alignment = self.get_msa(type=f'custom-{type}',
+                                          heteromer=heteromer,
+                                          msa_output_dir=msa_output_dir)
+        if custom_alignment is not None:
+          if type == 'sto':
+            custom_msa, custom_deletion_matrix, _ = parsers.parse_stockholm(custom_alignment)
+          elif type == 'a3m':
+            custom_msa, custom_deletion_matrix = parsers.parse_a3m(custom_alignment)
+          msas_.append(custom_msa)
+          deletion_matrices_.append(custom_deletion_matrix)
+          msa_depth[f'Custom_{type}'] += len(custom_msa)
+
       ## uniref90
-      uniref90_file_name = heteromer.description + '_uniref90_hits.sto'
-      
-      if uniref90_file_name in os.listdir(self.msa_library_dir):
-        logging.info('Skip Uniref90 search and take library MSA: ' + uniref90_file_name)
-        with open(os.path.join(self.msa_library_dir, uniref90_file_name), 'r') as f:
-          uniref90_alignment = f.read()
-      
-      else:
-        jackhmmer_uniref90_result = self.jackhmmer_uniref90_runner.query(
-          heteromer.fasta_path)[0]
-        uniref90_alignment = jackhmmer_uniref90_result['sto']
-
-        with open(os.path.join(msa_output_dir, uniref90_file_name), 'w') as f:
-          f.write(uniref90_alignment)
-        
+      uniref90_alignment = self.get_msa(type='uniref90',
+                                        heteromer=heteromer,
+                                        msa_output_dir=msa_output_dir)
       uniref90_msa, uniref90_deletion_matrix, _ = parsers.parse_stockholm(uniref90_alignment)
-      msa_depth['Uniref90'] += len(uniref90_msa)
-
-      ## pdb70
-      hhsearch_file_name = heteromer.description + '_pdb70_hits.hhr'
-
-      if hhsearch_file_name in os.listdir(self.msa_library_dir):
-        logging.info('Skip HHsearch and take library templates: ' + hhsearch_file_name)
-        with open(os.path.join(self.msa_library_dir, hhsearch_file_name), 'r') as f:
-          hhsearch_result = f.read()
-              
-      else:
-        uniref90_msa_as_a3m = parsers.convert_stockholm_to_a3m(
-          uniref90_alignment, max_sequences=self.uniref_max_hits)
-        hhsearch_result = self.hhsearch_pdb70_runner.query(uniref90_msa_as_a3m)
-    
-        with open(os.path.join(msa_output_dir, hhsearch_file_name), 'w') as f:
-          f.write(hhsearch_result)
-
-      result_templates = self.template_featurizer.get_templates(
-              query_sequence=complex.sequence,
-              heteromer_sequence=heteromer.sequence,
-              query_pdb_code=heteromer.description,
-              query_release_date=None,
-              hits=parsers.parse_hhr(hhsearch_result))
-      template_search_results_collecter.add(*result_templates)
+      msas_.append(uniref90_msa[:self.uniref_max_hits])
+      deletion_matrices_.append(uniref90_deletion_matrix[:self.uniref_max_hits])
+      msa_depth['Uniref90'] += len(uniref90_msa[:self.uniref_max_hits])
 
       ## mgnify
-      mgnify_file_name = heteromer.description + '_mgnify_hits.sto'
-
-      if mgnify_file_name in os.listdir(self.msa_library_dir):
-        logging.info('Skip MGnify search and take library MSA: ' + mgnify_file_name)
-        with open(os.path.join(self.msa_library_dir, mgnify_file_name), 'r') as f:
-          mgnify_alignment = f.read()
-    
-      else:
-        jackhmmer_mgnify_result = self.jackhmmer_mgnify_runner.query(
-          heteromer.fasta_path)[0]
-        mgnify_alignment = jackhmmer_mgnify_result['sto']
-      
-        with open(os.path.join(msa_output_dir, mgnify_file_name), 'w') as f:
-          f.write(mgnify_alignment)
-        
+      mgnify_alignment = self.get_msa(type='mgnify',
+                                      heteromer=heteromer,
+                                      msa_output_dir=msa_output_dir)
       mgnify_msa, mgnify_deletion_matrix, _ = parsers.parse_stockholm(mgnify_alignment)
-      
-      mgnify_msa = mgnify_msa[:self.mgnify_max_hits]
-      mgnify_deletion_matrix = mgnify_deletion_matrix[:self.mgnify_max_hits]
-      msa_depth['MGnify'] += len(mgnify_msa)
+      msas_.append(mgnify_msa[:self.mgnify_max_hits])
+      deletion_matrices_.append(mgnify_deletion_matrix[:self.mgnify_max_hits])
+      msa_depth['MGnify'] += len(mgnify_msa[:self.mgnify_max_hits])
           
       ## bfd
       if self._use_small_bfd:
-        small_bfd_file_name = heteromer.description + '_small_bfd_hits.a3m'
-          
-        if small_bfd_file_name in os.listdir(self.msa_library_dir):
-          logging.info('Skip small BFD search and take library MSA: ' + small_bfd_file_name)
-          with open(os.path.join(self.msa_library_dir, small_bfd_file_name), 'r') as f:
-            small_bfd_alignment = f.read()
-      
-        else:
-          jackhmmer_small_bfd_result = self.jackhmmer_small_bfd_runner.query(
-            heteromer.fasta_path)[0]
-          small_bfd_alignment = jackhmmer_small_bfd_result['sto']
-
-          with open(os.path.join(msa_output_dir, small_bfd_file_name), 'w') as f:
-            f.write(small_bfd_alignment)
-
+        small_bfd_alignment = self.get_msa(type='small_bfd',
+                                           heteromer=heteromer,
+                                           msa_output_dir=msa_output_dir)
         bfd_msa, bfd_deletion_matrix, _ = parsers.parse_stockholm(small_bfd_alignment)
+        msas_.append(bfd_msa)
+        deletion_matrices_.append(bfd_deletion_matrix)
         msa_depth['Small BFD'] += len(bfd_msa)
-    
+
       else:
-        bfd_uniclust_file_name = heteromer.description + '_bfd_uniclust_hits.a3m'
-          
-        if bfd_uniclust_file_name in os.listdir(self.msa_library_dir):
-          logging.info('Skip BFD-Uniclust search and take library MSA: ' + bfd_uniclust_file_name)
-          with open(os.path.join(self.msa_library_dir, bfd_uniclust_file_name), 'r') as f:
-            bfd_uniclust_alignment = f.read()
-          
-        else:
-          hhblits_bfd_uniclust_result = self.hhblits_bfd_uniclust_runner.query(
-            heteromer.fasta_path)
-          bfd_uniclust_alignment = hhblits_bfd_uniclust_result['a3m']
-      
-          with open(os.path.join(msa_output_dir, bfd_uniclust_file_name), 'w') as f:
-            f.write(bfd_uniclust_alignment)
-      
+        bfd_uniclust_alignment = self.get_msa(type='bfd_uniclust',
+                                              heteromer=heteromer,
+                                              msa_output_dir=msa_output_dir)
         bfd_msa, bfd_deletion_matrix = parsers.parse_a3m(bfd_uniclust_alignment)
+        msas_.append(bfd_msa)
+        deletion_matrices_.append(bfd_deletion_matrix)
         msa_depth['BFD-Uniclust'] += len(bfd_msa)
 
-      msas_ = (uniref90_msa, mgnify_msa, bfd_msa)
-      deletion_matrices_ = (uniref90_deletion_matrix, mgnify_deletion_matrix, bfd_deletion_matrix)
-      
       if len(complex.heteromers) == 1:
         msas = msas_
         deletion_matrices = deletion_matrices_
@@ -345,6 +344,35 @@ class DataPipeline:
             mtx.append(colabfold.pad(n, m, "mtx", complex.heteromer_sequences))
           msas.append(msa)
           deletion_matrices.append(mtx)
+
+      ## pdb70
+      hhsearch_file_name = heteromer.description + '_pdb70_hits.hhr'
+
+      if hhsearch_file_name in os.listdir(msa_output_dir):
+        logging.info('Skip HHsearch and take local templates: ' + hhsearch_file_name)
+        with open(os.path.join(msa_output_dir, hhsearch_file_name), 'r') as f:
+          hhsearch_result = f.read()
+
+      elif hhsearch_file_name in os.listdir(self.msa_library_dir):
+        logging.info('Skip HHsearch and take library templates: ' + hhsearch_file_name)
+        with open(os.path.join(self.msa_library_dir, hhsearch_file_name), 'r') as f:
+          hhsearch_result = f.read()
+
+      else:
+        uniref90_msa_as_a3m = parsers.convert_stockholm_to_a3m(
+          uniref90_alignment, max_sequences=self.uniref_max_hits)
+        hhsearch_result = self.hhsearch_pdb70_runner.query(uniref90_msa_as_a3m)
+
+        with open(os.path.join(msa_output_dir, hhsearch_file_name), 'w') as f:
+          f.write(hhsearch_result)
+
+      result_templates = self.template_featurizer.get_templates(
+        query_sequence=complex.sequence,
+        heteromer_sequence=heteromer.sequence,
+        query_pdb_code=heteromer.description,
+        query_release_date=None,
+        hits=parsers.parse_hhr(hhsearch_result))
+      template_search_results_collecter.add(*result_templates)
 
     templates_result = template_search_results_collecter.get_result()
 
@@ -364,11 +392,11 @@ class DataPipeline:
         msas=msas_mod,
         deletion_matrices=deletion_matrices_mod)
 
-    msa_depth['Total unique'] = int(msa_features['num_alignments'][0])
+    msa_depth['Total unique of complex'] = int(msa_features['num_alignments'][0])
 
     if len(msas[0]) > 1:
       plt = colabfold.plot_msas(msas, ':'.join(complex.heteromer_sequences))
-      plt.savefig(os.path.join(output_dir, "msa_coverage.png"), bbox_inches='tight', dpi=300)
+      plt.savefig(os.path.join(output_dir, 'msa_coverage.png'), bbox_inches='tight', dpi=300)
 
     logging.info('Uniref90 MSA size: %d sequences.', msa_depth['Uniref90'])
     logging.info('MGnify MSA size: %d sequences.', msa_depth['MGnify'])
@@ -376,8 +404,7 @@ class DataPipeline:
       logging.info('Small BFD MSA size: %d sequences.', msa_depth['Small BFD'])
     else:
       logging.info('Big BFD MSA size: %d sequences.', msa_depth['BFD-Uniclust'])
-    logging.info('Final (deduplicated) MSA size: %d sequences.',
-                 msa_features['num_alignments'][0])
+    logging.info('Final (deduplicated) MSA size of complex: %d sequences.', msa_features['num_alignments'][0])
     logging.info('Total number of templates: %d (NB: This can include bad '
                  'templates and is later filtered down).',
                  templates_result.features['template_domain_names'].shape[0])

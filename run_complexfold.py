@@ -11,9 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Version 1.1
+# Version 1.2
 #
 # Change Notes
+# v1.3:
+#  - Custom MSAs
+#  - Cap UniRef MSAs
+#
 # v1.2:
 #  - Added stopping of recycling in dependece on Ca-RMS as in ColabFold
 #  - Pickle all unrelaxed proteins and all quality scores in parsed_results.pkl; No big array anymore
@@ -344,15 +348,33 @@ def predict_structure(
   """Predicts structure using AlphaFold for the given sequence."""
   timings = {}
   t_00 = time.time()
+
   output_dir = os.path.join(output_dir_base, fasta_name)
   if not os.path.exists(output_dir):
     os.makedirs(output_dir)
   msa_output_dir = os.path.join(output_dir, 'msas')
-  if not os.path.exists(msa_output_dir):
-    os.makedirs(msa_output_dir)
   heteromer_output_dir = os.path.join(output_dir, 'heteromers')
+
   if not os.path.exists(heteromer_output_dir):
     os.makedirs(heteromer_output_dir)
+
+  if not os.path.exists(msa_output_dir):
+    os.makedirs(msa_output_dir)
+
+  if 'msa_coverage.png' in os.listdir(output_dir):
+    result_counter = 0
+    for os_dir in os.listdir(output_dir):
+      if os_dir.startswith('result_'):
+        dir = os.path.join(output_dir, os_dir)
+        if os.path.isdir(dir):
+          result_counter = max(result_counter, int(os_dir.split('_')[1])+1)
+    new_dir = os.path.join(output_dir, f'result_{result_counter}')
+    os.makedirs(new_dir)
+    for os_file in os.listdir(output_dir):
+      file_path = os.path.join(output_dir, os_file)
+      if os.path.isfile(file_path):
+        new_file_path = os.path.join(new_dir, os_file)
+        os.rename(file_path, new_file_path)
 
   # Get features.
   t_0 = time.time()
