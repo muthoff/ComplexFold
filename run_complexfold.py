@@ -61,6 +61,10 @@ from alphafold.data import colabfold
 import  jax
 import numpy as np
 import matplotlib.pyplot as plt
+#import dill
+#from pathos.multiprocessing import ProcessingPool as Pool
+from multiprocessing import Pool
+from multiprocessing import Process
 # Internal import (7716).
 
 flags.DEFINE_list('fasta_paths', None, 'Paths to FASTA files, each containing '
@@ -426,9 +430,8 @@ def predict_structure(
         t_0 = time.time()
         model_runner.predict(processed_feature_dict)
         timings[f'Predict benchmark {model_name}'] = time.time() - t_0
-    
 
-  relaxed_pdbs = {}
+
   logging.info(f'Relax and report best {result_handler.num_results} models.')
   for result in result_handler.results:
     logging.info('Processing %s', result.name)
@@ -450,9 +453,7 @@ def predict_structure(
     t_0 = time.time()
     relaxed_pdb_str, _, _ = amber_relaxer.process(prot=result.unrelaxed_protein)
     timings[f'Relax {result.name}'] = time.time() - t_0
-                                  
-    relaxed_pdbs[result.name] = relaxed_pdb_str
-                                  
+
     # Save the relaxed PDB.
     relaxed_output_path = os.path.join(output_dir, f'relaxed_{result.name}.pdb')
     with open(relaxed_output_path, 'w') as f:

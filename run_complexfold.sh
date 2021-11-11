@@ -11,7 +11,7 @@ usage() {
         echo "-d <data_dir>     Path to directory of supporting data"
         echo "-o <output_dir>   Path to a directory that will store the results."
         echo "-m <model_names>  Names of models to use (a comma separated list)"
-        echo "-y <thoroughness>  Thoroughness of prediction. Sets <preset>, <num_recycle>, <recycling_tolerance> and <num_seeds> to certain values. You can still overwrite them. Can either be: low, alphafold, medium, high, extrem."
+        echo "-y <thoroughness>  Thoroughness of prediction. Sets <preset>, <num_recycle>, <recycling_tolerance> and <num_seeds> to certain values. You can still overwrite them. Can either be: low, alphafold, medium, high, extreme."
         echo "-t <max_template_date> Maximum template release date to consider (ISO-8601 format - i.e. YYYY-MM-DD). Important if folding historical test sets"
         echo "-n <openmm_threads>   OpenMM threads (default: all available cores)"
         echo "-g <use_gpu>      Enable NVIDIA runtime to run with GPUs (default: True)"
@@ -162,7 +162,7 @@ elif [[ "$thoroughness" == "high" ]] ; then
     num_recycle_=15
     recycling_tolerance_=0.5
     num_seeds_=20
-elif [[ "$thoroughness" == "extrem" ]] ; then
+elif [[ "$thoroughness" == "extreme" ]] ; then
     preset_="full_dbs"
     num_recycle_=20
     recycling_tolerance_=0.5

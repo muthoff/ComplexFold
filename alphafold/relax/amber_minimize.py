@@ -174,7 +174,7 @@ def clean_protein(
 
   prot_pdb_string = protein.to_pdb(prot)
 
-  # This fuction is called prior to Amber and as Amber is run iterativley after each run as well
+  # This fuction is called prior to every Amber run and once more afterwards
   # AlphaFold itself does not know about true Termini (no OXT and H atoms),
   # but TER cards have been added after each chain
   # Amber on the other hand seems to remove the TER card, hence look for OXT atoms after each Amber run
@@ -208,7 +208,7 @@ def clean_protein(
   pdb_string = _get_pdb_string(as_file.getTopology(), as_file.getPositions())
   if checks:
     _check_cleaned_atoms(pdb_string, prot_pdb_string)
-    
+
   return pdb_string
   
     
