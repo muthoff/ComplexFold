@@ -14,13 +14,14 @@
 import json
 import os
 import pickle
-import numpy as np
 from typing import Dict
 
 from absl import flags
 from alphafold.model import features
 from alphafold.data import colabfold
 
+import jax
+import numpy as np
 import matplotlib.pyplot as plt
 
 

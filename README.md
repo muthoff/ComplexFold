@@ -4,28 +4,28 @@ This package provides a custom docker-free adaptation of AlphaFold 2.0 (Jumper e
 
 ## Installation
 ### Get ComplexFold
-'''bash
+```bash
 git clone https://github.com/muthoff/ComplexFold
 cd ComplexFold
 CFDIR=$PWD
-'''
+```
 
 ### Get Conda
-'''bash
+```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
-'''
+```
 Let it initialize
-'''bash
+```bash
 echo "conda deactivate\n" >> ~/.bashrc
 source ~/.bashrc
 conda update conda
 conda install pip
 rm -r Miniconda3-latest-Linux-x86_64.sh
-'''
+```
 
 ### Setup Conda
-'''bash
+```bash
 conda create -y --name af2 python==3.8
 conda activate af2
 
@@ -34,16 +34,16 @@ conda install -y -c bioconda hmmer==3.3.2 hhsuite kalign2
 
 pip3 install -r $CFDIR/requirements.txt
 pip3 install --upgrade jax jaxlib==0.1.69+cuda111 -f https://storage.googleapis.com/jax-releases/jax_releases.html
-'''
+```
 
 ### Update openmm 
-'''bash
+```bash
 PYTHON=$(which python)
 cd $(dirname $(dirname $PYTHON))/lib/python3.8/site-packages
 patch -p0 < $CFDIR/docker/openmm.patch
 
 conda deactivate
-'''
+```
 
 ## Genetic databases
 
@@ -138,7 +138,7 @@ will download parameters for:
     Jumper et al. 2021, Suppl. Methods 1.9.7 for details).
 
 ## Final set up and simple run of ComplexFold
-1.  Go through the section "Defaults" `ComplexFold/run_complexfold.sh' and change appropriatly.
+1.  Go through the section "Defaults" `ComplexFold/run_complexfold.sh` and change appropriatly.
 2.  Run `run_complexfold.sh` pointing to a FASTA file containing the protein sequence
     for which you wish to predict the structure and a description line stating with '>'.
     You can provide multiple sequences per FASTA file in order to predict complexes.
@@ -156,7 +156,7 @@ For the predictions of complexes you have to provide the description and the seq
 for each component, including homomers. The homomer sequence and description must be identical!
 A trimer with two unique proteins would have a FASTA file like this for example:
 
-'''fasta
+```fasta
 >FirstProtein
 ABCDGH
 
@@ -167,7 +167,7 @@ ABCDGH
 GHLKET
 PTWS
 
-'''
+```
 
 ### Complex Mode
 ComplexFold auto detects heteromers and changes a few things for better prediction.
