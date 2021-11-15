@@ -17,6 +17,8 @@ import pickle
 from typing import Dict
 
 from absl import flags
+from absl import logging
+from alphafold.common import protein
 from alphafold.model import features
 from alphafold.data import colabfold
 

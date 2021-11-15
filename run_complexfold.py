@@ -39,7 +39,6 @@
 #  - Added colabfold.plot_protein
 
 """Full AlphaFold protein structure prediction script."""
-import json
 import os
 import pathlib
 import pickle
@@ -61,16 +60,10 @@ from alphafold.model import config
 from alphafold.model import model
 from alphafold.model import features
 from alphafold.relax import relax
-from alphafold.data import colabfold
 from alphafold import complexfold
 
 import jax
 import numpy as np
-import matplotlib.pyplot as plt
-#import dill
-#from pathos.multiprocessing import ProcessingPool as Pool
-from multiprocessing import Pool
-from multiprocessing import Process
 # Internal import (7716).
 
 flags.DEFINE_list('fasta_paths', None, 'Paths to FASTA files, each containing '

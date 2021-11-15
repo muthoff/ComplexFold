@@ -2,7 +2,7 @@
 
 This package provides a custom docker-free adaptation of AlphaFold 2.0 (Jumper et al, 2021) and ColabFold (Mirdita et al, 2021).
 
-## Installation
+## Installation of ComplexFold
 ### Get ComplexFold
 ```bash
 git clone https://github.com/muthoff/ComplexFold
@@ -14,11 +14,11 @@ CFDIR=$PWD
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
-```
-Let it initialize
-```bash
+# Let it initialize
+
 echo "conda deactivate\n" >> ~/.bashrc
 source ~/.bashrc
+
 conda update conda
 conda install pip
 rm -r Miniconda3-latest-Linux-x86_64.sh
@@ -45,7 +45,7 @@ patch -p0 < $CFDIR/docker/openmm.patch
 conda deactivate
 ```
 
-## Genetic databases
+## Download of genetic databases
 
 This step requires `aria2c` to be installed on your machine.
 
@@ -59,7 +59,8 @@ AlphaFold needs multiple genetic (sequence) databases to run:
 *   [PDB](https://www.rcsb.org/) (structures in the mmCIF format).
 
 There is a script `ComplexFold/scripts/download_all_data.sh` that can be used to download
-and set up all of these databases:
+and set up all of these databases. The scripts provided download the most recent database
+vesions:
 
 *   Default:
 
@@ -118,7 +119,7 @@ $DOWNLOAD_DIR/                             # Total: ~ 2.2 TB (download: 438 GB)
 `bfd/` is only downloaded if you download the full databasees, and `small_bfd/`
 is only downloaded if you download the reduced databases.
 
-## Model parameters
+## Downloaf of model parameters
 
 While the AlphaFold code is licensed under the Apache 2.0 License, the AlphaFold
 parameters are made available for non-commercial use only under the terms of the
@@ -138,22 +139,24 @@ will download parameters for:
     Jumper et al. 2021, Suppl. Methods 1.9.7 for details).
 
 ## Final set up and simple run of ComplexFold
-1.  Go through the section "Defaults" `ComplexFold/run_complexfold.sh` and change appropriatly.
+1.  Go through the section "Defaults" in `ComplexFold/run_complexfold.sh` and change appropriatly
 2.  Run `run_complexfold.sh` pointing to a FASTA file containing the protein sequence
     for which you wish to predict the structure and a description line stating with '>'.
     You can provide multiple sequences per FASTA file in order to predict complexes.
 
     ```bash
-    python3 run_complexfold.sh -f path/to/fasta
+    bash run_complexfold.sh -f path/to/fasta
     ```
 
 ## Features
 ### FASTA file
 Each FASTA file must contain a description line stating with '>' followed by the name 
 of the protein. ComplexFold automatically cuts the name at the first space. The sequence
-can encompass multiple line.
+can encompass multiple lines.
+
 For the predictions of complexes you have to provide the description and the sequence
 for each component, including homomers. The homomer sequence and description must be identical!
+
 A trimer with two unique proteins would have a FASTA file like this for example:
 
 ```fasta
@@ -172,41 +175,45 @@ PTWS
 ### Complex Mode
 ComplexFold auto detects heteromers and changes a few things for better prediction.
 This includes:
-1.  Usage of 'ptm' models (Equivalent to flag `-c`.)
+1.  Usage of 'ptm' models (Equivalent to flag `-c`)
 2.  Reducing the number of potential templates (10 per heteromer) and increaseing the
     number of actual templates used (4 per heteromer). At the moment, I cannot control
-    which templates are finally used. These changes increase the likelyhood of using a
+    which templates are finally used. These changes increase the likelihood of using a
     template specific for each heteromer though.
 
-### MSA library
+### MSA library and custom MSAs
 By default ComplexFold uses the same databases and tools like AlphaFold2.0. Three MSAs
 are computed for each heteromer individually and saved under the name of the tool and
-heteromer in the 'msa' subdir of the output. This includes also the search for templates.
-You can copy these files into the 'msa_library'. ComplexFold search this path for appropriate
-files before computing new MSAs. This way you do not have to re-compute MSAs for new
-predictions, like in complex ther one component in known.
+the complex component description in the `msa/` subdir of the output. This includes also
+the search for templates. In addition, custom MSAs can be provided in either `sto`or `a3m`
+format. The file names must be `custom_{component description}.{sto/a3m}`.
+
+You can copy all these files into the `msa_library`. ComplexFold searches this path for
+appropriate files before computing new MSAs. This way you do not have to re-compute MSAs
+for new predictions, like in varying complexes where one component is always the same.
 
 Please delete any files in the msa_library after updating the databases!
 
 ### Re-run-in-place
-You can re-run complexfold in the same ouput dir `-o` with differing parameters. All files
-there will be moved into a new subfolder called `result_n`, where n is the n-th run.
-Moreover, the `msa/` subfolder is searched for any matching MSA/Template file. Appropriate
+You can re-run ComplexFold in the same ouput dir (`-o`) with differing parameters. All files
+there will be moved into a new subfolder called `result_n`, where `n` is the `n`-th run.
+Moreover, the `msa/` subfolder is searched for any matching MSA/template files. Appropriate
 files are read and missing ones are computed.
 
 ### Recycling
 AlphaFold uses its output and recycles the information into a new iteration of folding.
 By default 3 recycles are performed, however, this can be increased by the user by providing
-the flag `-r <num_recycle>`, where <num_recycle> is an integer. Usually <num_recycle> smaller
-than 30 is sufficient. This can be combined with the flag `-l <recycling_tolerance>`, where
-<recycling_tolerance> is a decimal number and declares when to stop recycling. This number
-is based on a predicted Ca-RMS and thus and the smaller, the better the prediction. However,
-this is not strictly true and pLDDT as well as pTM usually remain high in very difficult or
-inheretenlty disorder proteins nonetheless. This happen even if the observed value drops below
-the set threshold.
+the flag `-r <num_recycle>`, where `<num_recycle>` is an integer. Usually `<num_recycle>` smaller
+than 30 is sufficient.
 
-The smaller <recycling_tolerance> the more likely recycling happens exactly <num_recycle>
-times. <recycling_tolerance> is by default 0, usefull values are usually 0.25-0.33.
+This can be combined with the flag `-l <recycling_tolerance>`, where `<recycling_tolerance>`
+is a decimal number and declares when to stop recycling. This number is based on a predicted
+Ca-RMS and thus the smaller, the better the prediction. However, this is not strictly true
+and pLDDT as well as pTM usually remain high in very difficult or inheritently disordered
+proteins. This happen even if the observed value drops below the set threshold.
+
+The smaller `<recycling_tolerance>` the more likely recycling happens exactly `<num_recycle>`
+times. `<recycling_tolerance>` is by default 0, usefull values are usually 0.25-0.33.
 
 ### Random seeds and sampling prediction multiple times
 AlphaFold utilises a random seed to initialize features for predictions and the predictins
@@ -216,16 +223,18 @@ only a very shallow MSA (few sequences). However, GPU processing is sometimes (i
 case) not deterministic. Thus the entire AlphaFold pipeline is non-deterministic either and
 the same seed can give different results.
 
-You can provide multiple seeds in a comma separated list `-s 123,567,...` or set `-x <num_seeds>`.
-The latter genrates as much random seed as requested. This lets ComplexFold run the prediction
-multiple times with all given models. Only the best 5 models, based on plDDT (normal models) or
-pTM (ptm models), are relaxed and given as output. Keep in mind that the scores are themselves
-only prediction and a this way predicted model may just have an erroneously high score.
+With ComplexFold you can provide multiple seeds in a comma separated list `-s 123,567,...` or
+set `-x <num_seeds>`. The latter genrates as much random seed as requested. This lets ComplexFold
+run the prediction multiple times with all given models. Only the best 5 models, based on plDDT
+(normal models) or pTM (ptm models), are relaxed and given as output.
+
+Keep in mind that the scores are themselves only prediction and this way predicted model may
+just have an erroneously high score.
 
 ### Small bfd
-You can either use the full bfd or the faster smaller than. `-p <preset>` where the argument is
-either full_dbs or reduced_dbs. This can especially help if MSA get too big (several GB) and
-HHBlits crashes.
+You can either use the full bfd or the faster smaller one. `-p <preset>` where the argument is
+either `full_dbs` or `reduced_dbs`. This can especially help if the MSA gets too big (several GB) and
+HHBlits crashes. The MSAs often do not differ.
 
 ### Difficulty presets - thoroughness
 ComplexFold combines the listed features in difficulty presets: `-y <thoroughness>`. By default
@@ -237,35 +246,36 @@ ComplexFold uses "alphafold", which is equivalent to the original AlphaFold sett
 5. `extreme`: `-r 20 -l 0.33 -x 30 -p full_dbs`
 
 ### Keep results with a good score in a certain region
-I have got an a/b globular prediction which had always 10-15 amino acids unstructured while the
-entire protein was around 70 amino acids long. I was afraid this bad region allows the other
+Once, I have got an a/b globular prediction which had always 10-15 amino acids unstructured. The
+entire protein was only 70 amino acids short. I was afraid this bad region allowed the other
 parts to be very good, while itself might even be physically impossible. Hence such a
 predictions might only be a local minimum and may prevent proper folding/prediction.
 
 `-i <focus_region>` where the start and end position (x-y) is given, lets CompexFold only keep
-the models with the best pLDDT in that region. This has to be combined with `-x <num_seeds>`.
+the models with the best pLDDT in that region. This has to be combined with larger `-x <num_seeds>`.
 
-I was abel to get very different prediction sampling 50+ seed, including a b-barrel (good
-average pLDTT and good score at any position), further b-sheet only fold (bad average pLDDT)
-and further a/b globular fold which look similat as the initial one but were differentlya arranged.
+I was abel to get very different predictions while sampling 50+ seeds. This included a b-barrel (good
+average pLDTT and good score at any position), further b-sheet-only-fold (bad average pLDDT)
+and more a/b globular-folds which looked similar as the initial one but were differently arranged.
+
 Eventually, the initial predction was confirmed to be true by crystallisation, though.
 
 
 ### AlphaFold output
-The outputs will be in a subfolder of `output_dir`. They include the computed MSAs,
-unrelaxed structures, relaxed structures, raw model outputs, some prediction metadata
-and a comprehensive report of given argument, scores and timings. The `output_dir`
-directory will have the following structure:
+The outputs will be in a subfolder of `output_dir` named like the input FASTA file. It
+includes the computed MSAs, unrelaxed structures, relaxed structures, raw model outputs,
+some prediction metadata and a comprehensive report of given arguments, scores and timings.
+The `output_dir` directory will have the following structure:
 
 ```
 <target_name>/
     msas/
-        {protein description}_bfd_uniclust_hits.a3m
-        {protein description}_mgnify_hits.sto
-        {protein description}_uniref90_hits.sto
-        {protein description}_pdb70_hits.hhr
+        {heteromer description}_bfd_uniclust_hits.a3m
+        {heteromer description}_mgnify_hits.sto
+        {heteromer description}_uniref90_hits.sto
+        {heteromer description}_pdb70_hits.hhr
     heteromers/
-        {protein description}.fa
+        {heteromer description}.fa
     parsed_results.pkl
     unrelaxed_model_{1,2,3,4,5}{,_ptm}-sx.pdb
     relaxed_model_{1,2,3,4,5}{,_ptm}-sx.pdb
@@ -280,10 +290,10 @@ directory will have the following structure:
 
 The contents of each output file are as follows:
 
-*   `msas/` - A directory containing the files describing the various genetic
+*   `msas/` – A directory containing the files describing the various genetic
     tool hits that were used to construct the input MSA. Files are given for
-    each unique protein identified by it >protein description.
-*   `heteromers/` - A directory containing FASTA files for each heteromers.
+    each unique protein identified by the `description` given in the FAST file.
+*   `heteromers/` – A directory containing FASTA files for each heteromer.
 *   `parsed_results.pkl` – A `pickle` file containing a class which collects
     raw_model outputs and auxiliary outputs. Please look up exact structure
     in the alphafold/complexfold.py `class Result` and `class Result_Handler`.
@@ -295,17 +305,17 @@ The contents of each output file are as follows:
     structure prediction (see Jumper et al. 2021, Suppl. Methods 1.8.6 for
     details). `x` indicates the seed used, look it up in `report.json`.
 *   `model_*-sx.png` – Graphical representation of the model by ColabFold.
-*   msa_coverage.png – Coverage of the used MSAs by ColabFold.
-*   PAE.png – Predicted aligned error  by ColabFold.
-*   predicted_contacts.png – Predicted contacts by ColabFold.
-*   predicted_distogram.png – Predicted distogram  by ColabFold.
-*   pLDDT.png – pLDDT of each residue by ColabFold.
+*   `msa_coverage.png` – Coverage of the used MSAs by ColabFold.
+*   `PAE.png` – Predicted aligned error  by ColabFold.
+*   `predicted_contacts.png` – Predicted contacts by ColabFold.
+*   `predicted_distogram.png` – Predicted distogram  by ColabFold.
+*   `pLDDT.png` – pLDDT of each residue by ColabFold.
 *   `report.json` – A JSON format text file containing the scores, auxillary data,
     command arguments values.
 
 
 ## Citing this work
-Please refer to the github but also acknowledge by citing:
+Please refer to this github by Matthias Uthoff but also acknowledge by citing:
 
 ```bibtex
 @Article{AlphaFold2021,
@@ -330,12 +340,11 @@ Please refer to the github but also acknowledge by citing:
 }
 ```
 
-5
-
 
 ## Acknowledgements
 
-Great thanks goes to Deepmind and the ColabFold contributors.
+Great thanks goes to [Deepmind](https://github.com/deepmind/alphafold)
+and the [ColabFold](https://github.com/sokrypton/ColabFold) contributors.
 
 AlphaFold communicates with and/or references the following separate libraries
 and packages:
@@ -368,6 +377,9 @@ We thank all their contributors and maintainers!
 ## License and Disclaimer
 
 This is not an officially supported Google product.
+
+This is derivative of [AlphaFold](https://github.com/deepmind/alphafold)
+and [ColabFold](https://github.com/sokrypton/ColabFold)
 
 ### ComplexFold Code License
 
