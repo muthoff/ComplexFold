@@ -1,51 +1,51 @@
-![header](imgs/header.jpg)
+# ComplexFold
 
-# AlphaFold
+This package provides a custom docker-free adaptation of AlphaFold 2.0 (Jumper et al, 2021) and ColabFold (Mirdita et al, 2021).
 
-This package provides an implementation of the inference pipeline of AlphaFold
-v2.0. This is a completely new model that was entered in CASP14 and published in
-Nature. For simplicity, we refer to this model as AlphaFold throughout the rest
-of this document.
+## Installation
+### Get ComplexFold
+'''bash
+git clone https://github.com/muthoff/ComplexFold
+cd ComplexFold
+CFDIR=$PWD
+'''
 
-Any publication that discloses findings arising from using this source code or
-the model parameters should [cite](#citing-this-work) the
-[AlphaFold paper](https://doi.org/10.1038/s41586-021-03819-2). Please also refer
-to the
-[Supplementary Information](https://static-content.springer.com/esm/art%3A10.1038%2Fs41586-021-03819-2/MediaObjects/41586_2021_3819_MOESM1_ESM.pdf)
-for a detailed description of the method.
+### Get Conda
+'''bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+'''
+Let it initialize
+'''bash
+echo "conda deactivate\n" >> ~/.bashrc
+source ~/.bashrc
+conda update conda
+conda install pip
+rm -r Miniconda3-latest-Linux-x86_64.sh
+'''
 
-**You can use a slightly simplified version of AlphaFold with
-[this Colab
-notebook](https://colab.research.google.com/github/deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb)**
-or community-supported versions (see below).
+### Setup Conda
+'''bash
+conda create -y --name af2 python==3.8
+conda activate af2
 
-![CASP14 predictions](imgs/casp14_predictions.gif)
+conda install -y -c conda-forge openmm==7.5.1 cudnn==8.2.1.32 pdbfixer==1.7 numba
+conda install -y -c bioconda hmmer==3.3.2 hhsuite kalign2
 
-## First time setup
+pip3 install -r $CFDIR/requirements.txt
+pip3 install --upgrade jax jaxlib==0.1.69+cuda111 -f https://storage.googleapis.com/jax-releases/jax_releases.html
+'''
 
-The following steps are required in order to run AlphaFold:
+### Update openmm 
+'''bash
+PYTHON=$(which python)
+cd $(dirname $(dirname $PYTHON))/lib/python3.8/site-packages
+patch -p0 < $CFDIR/docker/openmm.patch
 
-1.  Install [Docker](https://www.docker.com/).
-    *   Install
-        [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-        for GPU support.
-    *   Setup running
-        [Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
-1.  Download genetic databases (see below).
-1.  Download model parameters (see below).
-1.  Check that AlphaFold will be able to use a GPU by running:
+conda deactivate
+'''
 
-    ```bash
-    docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
-    ```
-
-    The output of this command should show a list of your GPUs. If it doesn't,
-    check if you followed all steps correctly when setting up the
-    [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-    or take a look at the following
-    [NVIDIA Docker issue](https://github.com/NVIDIA/nvidia-docker/issues/1447#issuecomment-801479573).
-
-### Genetic databases
+## Genetic databases
 
 This step requires `aria2c` to be installed on your machine.
 
@@ -58,7 +58,7 @@ AlphaFold needs multiple genetic (sequence) databases to run:
 *   [PDB70](http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/),
 *   [PDB](https://www.rcsb.org/) (structures in the mmCIF format).
 
-We provide a script `scripts/download_all_data.sh` that can be used to download
+There is a script `ComplexFold/scripts/download_all_data.sh` that can be used to download
 and set up all of these databases:
 
 *   Default:
@@ -78,9 +78,8 @@ and set up all of these databases:
     will download a reduced version of the databases to be used with the
     `reduced_dbs` preset.
 
-We don't provide exactly the versions used in CASP14 -- see the [note on
-reproducibility](#note-on-reproducibility). Some of the databases are mirrored
-for speed, see [mirrored databases](#mirrored-databases).
+The script will download the most recent databases and hence ComplexFold cannot
+reproduce the CASP14 output.
 
 :ledger: **Note: The total download size for the full databases is around 415 GB
 and the total size when unzipped is 2.2 TB. Please make sure you have a large
@@ -119,7 +118,7 @@ $DOWNLOAD_DIR/                             # Total: ~ 2.2 TB (download: 438 GB)
 `bfd/` is only downloaded if you download the full databasees, and `small_bfd/`
 is only downloaded if you download the reduced databases.
 
-### Model parameters
+## Model parameters
 
 While the AlphaFold code is licensed under the Apache 2.0 License, the AlphaFold
 parameters are made available for non-commercial use only under the terms of the
@@ -138,200 +137,175 @@ will download parameters for:
     predicted aligned error values alongside their structure predictions (see
     Jumper et al. 2021, Suppl. Methods 1.9.7 for details).
 
-## Running AlphaFold
-
-**The simplest way to run AlphaFold is using the provided Docker script.** This
-was tested on Google Cloud with a machine using the `nvidia-gpu-cloud-image`
-with 12 vCPUs, 85 GB of RAM, a 100 GB boot disk, the databases on an additional
-3 TB disk, and an A100 GPU.
-
-1.  Clone this repository and `cd` into it.
+## Final set up and simple run of ComplexFold
+1.  Go through the section "Defaults" `ComplexFold/run_complexfold.sh' and change appropriatly.
+2.  Run `run_complexfold.sh` pointing to a FASTA file containing the protein sequence
+    for which you wish to predict the structure and a description line stating with '>'.
+    You can provide multiple sequences per FASTA file in order to predict complexes.
 
     ```bash
-    git clone https://github.com/deepmind/alphafold.git
+    python3 run_complexfold.sh -f path/to/fasta
     ```
 
-1.  Modify `DOWNLOAD_DIR` in `docker/run_docker.py` to be the path to the
-    directory containing the downloaded databases.
-1.  Build the Docker image:
+## Features
+### FASTA file
+Each FASTA file must contain a description line stating with '>' followed by the name 
+of the protein. ComplexFold automatically cuts the name at the first space. The sequence
+can encompass multiple line.
+For the predictions of complexes you have to provide the description and the sequence
+for each component, including homomers. The homomer sequence and description must be identical!
+A trimer with two unique proteins would have a FASTA file like this for example:
 
-    ```bash
-    docker build -f docker/Dockerfile -t alphafold .
-    ```
+'''fasta
+>FirstProtein
+ABCDGH
 
-1.  Install the `run_docker.py` dependencies. Note: You may optionally wish to
-    create a
-    [Python Virtual Environment](https://docs.python.org/3/tutorial/venv.html)
-    to prevent conflicts with your system's Python environment.
+>FirstProtein
+ABCDGH
 
-    ```bash
-    pip3 install -r docker/requirements.txt
-    ```
+>SecondProtein
+GHLKET
+PTWS
 
-1.  Run `run_docker.py` pointing to a FASTA file containing the protein sequence
-    for which you wish to predict the structure. If you are predicting the
-    structure of a protein that is already in PDB and you wish to avoid using it
-    as a template, then `max_template_date` must be set to be before the release
-    date of the structure. For example, for the T1050 CASP14 target:
+'''
 
-    ```bash
-    python3 docker/run_docker.py --fasta_paths=T1050.fasta --max_template_date=2020-05-14
-    ```
+### Complex Mode
+ComplexFold auto detects heteromers and changes a few things for better prediction.
+This includes:
+1.  Usage of 'ptm' models (Equivalent to flag `-c`.)
+2.  Reducing the number of potential templates (10 per heteromer) and increaseing the
+    number of actual templates used (4 per heteromer). At the moment, I cannot control
+    which templates are finally used. These changes increase the likelyhood of using a
+    template specific for each heteromer though.
 
-    By default, Alphafold will attempt to use all visible GPU devices. To use a
-    subset, specify a comma-separated list of GPU UUID(s) or index(es) using the
-    `--gpu_devices` flag. See
-    [GPU enumeration](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/user-guide.html#gpu-enumeration)
-    for more details.
+### MSA library
+By default ComplexFold uses the same databases and tools like AlphaFold2.0. Three MSAs
+are computed for each heteromer individually and saved under the name of the tool and
+heteromer in the 'msa' subdir of the output. This includes also the search for templates.
+You can copy these files into the 'msa_library'. ComplexFold search this path for appropriate
+files before computing new MSAs. This way you do not have to re-compute MSAs for new
+predictions, like in complex ther one component in known.
 
-1.  You can control AlphaFold speed / quality tradeoff by adding
-    `--preset=reduced_dbs`, `--preset=full_dbs` or `--preset=casp14` to the run
-    command. We provide the following presets:
+Please delete any files in the msa_library after updating the databases!
 
-    *   **reduced_dbs**: This preset is optimized for speed and lower hardware
-        requirements. It runs with a reduced version of the BFD database and
-        with no ensembling. It requires 8 CPU cores (vCPUs), 8 GB of RAM, and
-        600 GB of disk space.
-    *   **full_dbs**: The model in this preset is 8 times faster than the
-        `casp14` preset with a very minor quality drop (-0.1 average GDT drop on
-        CASP14 domains). It runs with all genetic databases and with no
-        ensembling.
-    *   **casp14**: This preset uses the same settings as were used in CASP14.
-        It runs with all genetic databases and with 8 ensemblings.
+### Re-run-in-place
+You can re-run complexfold in the same ouput dir `-o` with differing parameters. All files
+there will be moved into a new subfolder called `result_n`, where n is the n-th run.
+Moreover, the `msa/` subfolder is searched for any matching MSA/Template file. Appropriate
+files are read and missing ones are computed.
 
-    Running the command above with the `casp14` preset would look like this:
+### Recycling
+AlphaFold uses its output and recycles the information into a new iteration of folding.
+By default 3 recycles are performed, however, this can be increased by the user by providing
+the flag `-r <num_recycle>`, where <num_recycle> is an integer. Usually <num_recycle> smaller
+than 30 is sufficient. This can be combined with the flag `-l <recycling_tolerance>`, where
+<recycling_tolerance> is a decimal number and declares when to stop recycling. This number
+is based on a predicted Ca-RMS and thus and the smaller, the better the prediction. However,
+this is not strictly true and pLDDT as well as pTM usually remain high in very difficult or
+inheretenlty disorder proteins nonetheless. This happen even if the observed value drops below
+the set threshold.
 
-    ```bash
-    python3 docker/run_docker.py --fasta_paths=T1050.fasta --max_template_date=2020-05-14 --preset=casp14
-    ```
+The smaller <recycling_tolerance> the more likely recycling happens exactly <num_recycle>
+times. <recycling_tolerance> is by default 0, usefull values are usually 0.25-0.33.
+
+### Random seeds and sampling prediction multiple times
+AlphaFold utilises a random seed to initialize features for predictions and the predictins
+itself. Giving the same seed, shall always yield the same result, while providing a different seed,
+can yield different predictions. This is more pronounced in difficult cases with for example
+only a very shallow MSA (few sequences). However, GPU processing is sometimes (including this
+case) not deterministic. Thus the entire AlphaFold pipeline is non-deterministic either and
+the same seed can give different results.
+
+You can provide multiple seeds in a comma separated list `-s 123,567,...` or set `-x <num_seeds>`.
+The latter genrates as much random seed as requested. This lets ComplexFold run the prediction
+multiple times with all given models. Only the best 5 models, based on plDDT (normal models) or
+pTM (ptm models), are relaxed and given as output. Keep in mind that the scores are themselves
+only prediction and a this way predicted model may just have an erroneously high score.
+
+### Small bfd
+You can either use the full bfd or the faster smaller than. `-p <preset>` where the argument is
+either full_dbs or reduced_dbs. This can especially help if MSA get too big (several GB) and
+HHBlits crashes.
+
+### Difficulty presets - thoroughness
+ComplexFold combines the listed features in difficulty presets: `-y <thoroughness>`. By default
+ComplexFold uses "alphafold", which is equivalent to the original AlphaFold settings.
+1. `low`: `-r 2 -l 0.5 -x 1 -p reduced_dbs`
+2. `alphafold`: `-r 3 -l 0.0 -x 1 -p full_dbs`
+3. `medium`: `-r 10 -l 0.5 -x 5 -p full_dbs`
+4. `high`: `-r 15 -l 0.33 -x 20 -p full_dbs`
+5. `extreme`: `-r 20 -l 0.33 -x 30 -p full_dbs`
+
+### Keep results with a good score in a certain region
+I have got an a/b globular prediction which had always 10-15 amino acids unstructured while the
+entire protein was around 70 amino acids long. I was afraid this bad region allows the other
+parts to be very good, while itself might even be physically impossible. Hence such a
+predictions might only be a local minimum and may prevent proper folding/prediction.
+
+`-i <focus_region>` where the start and end position (x-y) is given, lets CompexFold only keep
+the models with the best pLDDT in that region. This has to be combined with `-x <num_seeds>`.
+
+I was abel to get very different prediction sampling 50+ seed, including a b-barrel (good
+average pLDTT and good score at any position), further b-sheet only fold (bad average pLDDT)
+and further a/b globular fold which look similat as the initial one but were differentlya arranged.
+Eventually, the initial predction was confirmed to be true by crystallisation, though.
+
 
 ### AlphaFold output
-
-The outputs will be in a subfolder of `output_dir` in `run_docker.py`. They
-include the computed MSAs, unrelaxed structures, relaxed structures, ranked
-structures, raw model outputs, prediction metadata, and section timings. The
-`output_dir` directory will have the following structure:
+The outputs will be in a subfolder of `output_dir`. They include the computed MSAs,
+unrelaxed structures, relaxed structures, raw model outputs, some prediction metadata
+and a comprehensive report of given argument, scores and timings. The `output_dir`
+directory will have the following structure:
 
 ```
 <target_name>/
-    features.pkl
-    ranked_{0,1,2,3,4}.pdb
-    ranking_debug.json
-    relaxed_model_{1,2,3,4,5}.pdb
-    result_model_{1,2,3,4,5}.pkl
-    timings.json
-    unrelaxed_model_{1,2,3,4,5}.pdb
     msas/
-        bfd_uniclust_hits.a3m
-        mgnify_hits.sto
-        uniref90_hits.sto
+        {protein description}_bfd_uniclust_hits.a3m
+        {protein description}_mgnify_hits.sto
+        {protein description}_uniref90_hits.sto
+        {protein description}_pdb70_hits.hhr
+    heteromers/
+        {protein description}.fa
+    parsed_results.pkl
+    unrelaxed_model_{1,2,3,4,5}{,_ptm}-sx.pdb
+    relaxed_model_{1,2,3,4,5}{,_ptm}-sx.pdb
+    model_{0,1,2,3,4}{,_ptm}-sx.png
+    msa_coverage.png
+    PAE.png
+    predicted_contacts.png
+    predicted_distogram.png
+    pLDDT.png
+    report.json
 ```
 
 The contents of each output file are as follows:
 
-*   `features.pkl` – A `pickle` file containing the input feature NumPy arrays
-    used by the models to produce the structures.
-*   `unrelaxed_model_*.pdb` – A PDB format text file containing the predicted
-    structure, exactly as outputted by the model.
-*   `relaxed_model_*.pdb` – A PDB format text file containing the predicted
+*   `msas/` - A directory containing the files describing the various genetic
+    tool hits that were used to construct the input MSA. Files are given for
+    each unique protein identified by it >protein description.
+*   `heteromers/` - A directory containing FASTA files for each heteromers.
+*   `parsed_results.pkl` – A `pickle` file containing a class which collects
+    raw_model outputs and auxiliary outputs. Please look up exact structure
+    in the alphafold/complexfold.py `class Result` and `class Result_Handler`.
+*   `unrelaxed_model_*-sx.pdb` – A PDB format text file containing the predicted
+    structure, exactly as outputted by the model. `x` indicates the seed used,
+    look it up in `report.json`.
+*   `relaxed_model_*-sx.pdb` – A PDB format text file containing the predicted
     structure, after performing an Amber relaxation procedure on the unrelaxed
     structure prediction (see Jumper et al. 2021, Suppl. Methods 1.8.6 for
-    details).
-*   `ranked_*.pdb` – A PDB format text file containing the relaxed predicted
-    structures, after reordering by model confidence. Here `ranked_0.pdb` should
-    contain the prediction with the highest confidence, and `ranked_4.pdb` the
-    prediction with the lowest confidence. To rank model confidence, we use
-    predicted LDDT (pLDDT) scores (see Jumper et al. 2021, Suppl. Methods 1.9.6
-    for details).
-*   `ranking_debug.json` – A JSON format text file containing the pLDDT values
-    used to perform the model ranking, and a mapping back to the original model
-    names.
-*   `timings.json` – A JSON format text file containing the times taken to run
-    each section of the AlphaFold pipeline.
-*   `msas/` - A directory containing the files describing the various genetic
-    tool hits that were used to construct the input MSA.
-*   `result_model_*.pkl` – A `pickle` file containing a nested dictionary of the
-    various NumPy arrays directly produced by the model. In addition to the
-    output of the structure module, this includes auxiliary outputs such as:
+    details). `x` indicates the seed used, look it up in `report.json`.
+*   `model_*-sx.png` – Graphical representation of the model by ColabFold.
+*   msa_coverage.png – Coverage of the used MSAs by ColabFold.
+*   PAE.png – Predicted aligned error  by ColabFold.
+*   predicted_contacts.png – Predicted contacts by ColabFold.
+*   predicted_distogram.png – Predicted distogram  by ColabFold.
+*   pLDDT.png – pLDDT of each residue by ColabFold.
+*   `report.json` – A JSON format text file containing the scores, auxillary data,
+    command arguments values.
 
-    *   Distograms (`distogram/logits` contains a NumPy array of shape [N_res,
-        N_res, N_bins] and `distogram/bin_edges` contains the definition of the
-        bins).
-    *   Per-residue pLDDT scores (`plddt` contains a NumPy array of shape
-        [N_res] with the range of possible values from `0` to `100`, where `100`
-        means most confident). This can serve to identify sequence regions
-        predicted with high confidence or as an overall per-target confidence
-        score when averaged across residues.
-    *   Present only if using pTM models: predicted TM-score (`ptm` field
-        contains a scalar). As a predictor of a global superposition metric,
-        this score is designed to also assess whether the model is confident in
-        the overall domain packing.
-    *   Present only if using pTM models: predicted pairwise aligned errors
-        (`predicted_aligned_error` contains a NumPy array of shape [N_res,
-        N_res] with the range of possible values from `0` to
-        `max_predicted_aligned_error`, where `0` means most confident). This can
-        serve for a visualisation of domain packing confidence within the
-        structure.
-
-The pLDDT confidence measure is stored in the B-factor field of the output PDB
-files (although unlike a B-factor, higher pLDDT is better, so care must be taken
-when using for tasks such as molecular replacement).
-
-This code has been tested to match mean top-1 accuracy on a CASP14 test set with
-pLDDT ranking over 5 model predictions (some CASP targets were run with earlier
-versions of AlphaFold and some had manual interventions; see our forthcoming
-publication for details). Some targets such as T1064 may also have high
-individual run variance over random seeds.
-
-## Inferencing many proteins
-
-The provided inference script is optimized for predicting the structure of a
-single protein, and it will compile the neural network to be specialized to
-exactly the size of the sequence, MSA, and templates. For large proteins, the
-compile time is a negligible fraction of the runtime, but it may become more
-significant for small proteins or if the multi-sequence alignments are already
-precomputed. In the bulk inference case, it may make sense to use our
-`make_fixed_size` function to pad the inputs to a uniform size, thereby reducing
-the number of compilations required.
-
-We do not provide a bulk inference script, but it should be straightforward to
-develop on top of the `RunModel.predict` method with a parallel system for
-precomputing multi-sequence alignments. Alternatively, this script can be run
-repeatedly with only moderate overhead.
-
-## Note on reproducibility
-
-AlphaFold's output for a small number of proteins has high inter-run variance,
-and may be affected by changes in the input data. The CASP14 target T1064 is a
-notable example; the large number of SARS-CoV-2-related sequences recently
-deposited changes its MSA significantly. This variability is somewhat mitigated
-by the model selection process; running 5 models and taking the most confident.
-
-To reproduce the results of our CASP14 system as closely as possible you must
-use the same database versions we used in CASP. These may not match the default
-versions downloaded by our scripts.
-
-For genetics:
-
-*   UniRef90:
-    [v2020_01](https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2020_01/uniref/)
-*   MGnify:
-    [v2018_12](http://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2018_12/)
-*   Uniclust30: [v2018_08](http://wwwuser.gwdg.de/~compbiol/uniclust/2018_08/)
-*   BFD: [only version available](https://bfd.mmseqs.com/)
-
-For templates:
-
-*   PDB: (downloaded 2020-05-14)
-*   PDB70: [2020-05-13](http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/old-releases/pdb70_from_mmcif_200513.tar.gz)
-
-An alternative for templates is to use the latest PDB and PDB70, but pass the
-flag `--max_template_date=2020-05-14`, which restricts templates only to
-structures that were available at the start of CASP14.
 
 ## Citing this work
-
-If you use the code or data in this package, please cite:
+Please refer to the github but also acknowledge by citing:
 
 ```bibtex
 @Article{AlphaFold2021,
@@ -346,18 +320,22 @@ If you use the code or data in this package, please cite:
 }
 ```
 
-## Community contributions
+```bibtex
+@Article{ColabFold2021,
+  author  = {Mirdita M and Schütze K and Moriwaki Y and Heo L and Ovchinnikov S and Steinegger M.},
+  journal = {bioRxiv},
+  title   = {{ColabFold} - Making protein folding accessible to all},
+  year    = {2021},
+  doi     = {10.1101/2021.08.15.45642}
+}
+```
 
-Colab notebooks provided by the community (please note that these notebooks may
-vary from our full AlphaFold system and we did not validate their accuracy):
+5
 
-*   The [ColabFold AlphaFold2 notebook](https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb)
-    by Martin Steinegger, Sergey Ovchinnikov and Milot Mirdita, which uses an
-    API hosted at the Södinglab based on the MMseqs2 server [(Mirdita et al.
-    2019, Bioinformatics)](https://academic.oup.com/bioinformatics/article/35/16/2856/5280135)
-    for the multiple sequence alignment creation.
 
 ## Acknowledgements
+
+Great thanks goes to Deepmind and the ColabFold contributors.
 
 AlphaFold communicates with and/or references the following separate libraries
 and packages:
@@ -391,9 +369,7 @@ We thank all their contributors and maintainers!
 
 This is not an officially supported Google product.
 
-Copyright 2021 DeepMind Technologies Limited.
-
-### AlphaFold Code License
+### ComplexFold Code License
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 this file except in compliance with the License. You may obtain a copy of the
@@ -420,7 +396,7 @@ software, libraries or code is subject to any such terms and you should check
 that you can comply with any applicable restrictions or terms and conditions
 before use.
 
-### Mirrored Databases
+### Used Databases
 
 The following databases have been mirrored by DeepMind, and are available with reference to the following:
 

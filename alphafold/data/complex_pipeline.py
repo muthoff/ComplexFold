@@ -10,6 +10,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+#
+# ComplexFold is based on AlphaFold2.0. Jumper et al. 2021, 10.1038/s41586-021-03819-2
+# https://github.com/deepmind/alphafold
+#
+#
 
 """Functions for building the input features for the AlphaFold model."""
 

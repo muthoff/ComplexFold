@@ -1,3 +1,4 @@
+# Contents of this file are copied from ColabFold. Mirdita et al. 2021, 10.1101/2021.08.15.456425
 # https://github.com/sokrypton/ColabFold/blob/main/beta/colabfold.py
 
 ############################################

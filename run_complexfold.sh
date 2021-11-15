@@ -1,6 +1,15 @@
 # Description: AlphaFold non-docker version
 # Author: Matthias Uthoff
 
+
+
+
+# Only change the section Defaults !
+
+
+
+
+
 usage() {
         echo ""
         echo "Please make sure all required parameters are given"
@@ -41,22 +50,19 @@ unset __conda_setup
 conda activate af2
 
 
-# Set defaults
-alphafold_script=/home/matthias/ComplexFold/run_complexfold.py
-data_dir=/home/matthias/HDD/Alphafold_DBs
-output_dir=/home/matthias/Documents/Structures/Alphafold
-thoroughness=alphafold
-max_template_date=$( date +%Y-%m-%d )
-gpu_devices=0
-amber_accel="CUDA"
-random_seeds=-1
-focus_region=""
-benchmark=false
-use_gpu=true
-complex_mode=false
-write_features_models=false
 
-# Path and user config (change me if required)
+
+
+
+
+# Defaults
+## Path of ComplexFold script
+alphafold_script=/home/matthias/ComplexFold/run_complexfold.py
+
+## Dir to the databases
+data_dir=/home/matthias/HDD/Alphafold_DBs
+
+## Path of each database
 bfd_database_path="$data_dir/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
 small_bfd_database_path="$data_dir/small_bfd/bfd-first_non_consensus_sequences.fasta"
 mgnify_database_path="$data_dir/mgnify/mgy_clusters.fa"
@@ -65,13 +71,42 @@ obsolete_pdbs_path="$data_dir/pdb_mmcif/obsolete.dat"
 pdb70_database_path="$data_dir/pdb70/pdb70"
 uniclust30_database_path="$data_dir/uniclust30/UniRef30_2021_06"
 uniref90_database_path="$data_dir/uniref90/uniref90.fasta"
+## Library for pre-computed MSAs - Please make this dir before use!
 msa_library_dir="$data_dir/msa_library"
+
+## Output dir
+output_dir=/home/matthias/Documents/Structures/Alphafold
+
+## Which GPU device to use. Usually you can keep that as 0. If you do not have a GPU set use_gpu=false
+gpu_devices=0
+use_gpu=true
+
+## Relaxation is accelerated by the GPU (set to "CUDA") or runs on the the CPU (set to "CPU").
+amber_accel="CUDA"
+
+# Further variables defining what a default run of ComplexFold does. You should leav them.
+max_template_date=$( date +%Y-%m-%d )
+random_seeds=-1
+focus_region=""
+benchmark=false
+thoroughness=alphafold
+complex_mode=false
+write_features_models=false
 
 # Binary path (change me if required)
 hhblits_binary_path=$(which hhblits)
 hhsearch_binary_path=$(which hhsearch)
 jackhmmer_binary_path=$(which jackhmmer)
 kalign_binary_path=$(which kalign)
+
+# No reason to change anything below this
+################################################################################################
+
+
+
+
+
+
 
 while getopts "d:o:m:y:f:t:g:n:a:p:u:r:l:s:x:i:bcw" opt
 do
@@ -160,12 +195,12 @@ elif [[ "$thoroughness" == "medium" ]] ; then
 elif [[ "$thoroughness" == "high" ]] ; then
     preset_="full_dbs"
     num_recycle_=15
-    recycling_tolerance_=0.5
+    recycling_tolerance_=0.33
     num_seeds_=20
 elif [[ "$thoroughness" == "extreme" ]] ; then
     preset_="full_dbs"
     num_recycle_=20
-    recycling_tolerance_=0.5
+    recycling_tolerance_=0.33
     num_seeds_=30
 else
     usage

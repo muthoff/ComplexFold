@@ -1,9 +1,0 @@
-alphafold/data/colabfold.py
-alphafold/data/complex_pipeline.py
-alphafold/data/templates.py
-alphafold/model/model.py
-alphafold/model/modules.py
-alphafold/model/config.py
-alphafold/relax/amber_minimize.py
-alphafold/relax/relax.py
-
