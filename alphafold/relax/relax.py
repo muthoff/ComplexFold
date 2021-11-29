@@ -36,7 +36,7 @@ class AmberRelaxation(object):
                stiffness: float,
                exclude_residues: Sequence[int],
                max_outer_iterations: int,
-               platform: str = 'CPU'):
+               platform_name: str = 'CPU'):
     """Initialize Amber Relaxer.
 
     Args:
@@ -58,7 +58,7 @@ class AmberRelaxation(object):
     self._stiffness = stiffness
     self._exclude_residues = exclude_residues
     self._max_outer_iterations = max_outer_iterations
-    self._platform = platform
+    self._platform_name = platform_name
 
   def process(self, *,
               prot: protein.Protein) -> Tuple[str, Dict[str, Any], np.ndarray]:
@@ -68,7 +68,7 @@ class AmberRelaxation(object):
         tolerance=self._tolerance, stiffness=self._stiffness,
         exclude_residues=self._exclude_residues,
         max_outer_iterations=self._max_outer_iterations,
-        platform=self._platform)
+        platform_name=self._platform_name)
     min_pos = out['pos']
     start_pos = out['posinit']
     rmsd = np.sqrt(np.sum((start_pos - min_pos)**2) / start_pos.shape[0])

@@ -83,7 +83,7 @@ def _openmm_minimize(
     stiffness: unit.Unit,
     restraint_set: str,
     exclude_residues: Sequence[int],
-    platform: str):
+    platform_name: str):
   """Minimize energy via openmm."""
 
   pdb_file = io.StringIO(pdb_str)
@@ -98,7 +98,7 @@ def _openmm_minimize(
 
   integrator = openmm.LangevinIntegrator(0, 0.01, 0.0)
 
-  platform = openmm.Platform.getPlatformByName(platform)
+  platform = openmm.Platform.getPlatformByName(platform_name)
   simulation = openmm_app.Simulation(
       pdb.topology, system, integrator, platform)
   simulation.context.setPositions(pdb.positions)
@@ -457,7 +457,7 @@ def _run_one_iteration(
     restraint_set: str,
     max_attempts: int,
     exclude_residues: Optional[Collection[int]] = None,
-    platform: str = 'CPU'):
+    platform_name: str = 'CPU'):
   """Runs the minimization pipeline.
     
   Args:
@@ -494,7 +494,7 @@ def _run_one_iteration(
           tolerance=tolerance, stiffness=stiffness,
           restraint_set=restraint_set,
           exclude_residues=exclude_residues,
-          platform=platform)
+          platform_name=platform_name)
       minimized = True
     except Exception as e:  # pylint: disable=broad-except
       logging.info(e)
@@ -516,7 +516,7 @@ def run_pipeline(
     max_attempts: int = 100,
     checks: bool = True,
     exclude_residues: Optional[Sequence[int]] = None,
-    platform: str = 'CPU'):
+    platform_name: str = 'CPU'):
   """Run iterative amber relax.
       
   Successive relax iterations are performed until all violations have been
@@ -564,7 +564,7 @@ def run_pipeline(
         stiffness=stiffness,
         restraint_set=restraint_set,
         max_attempts=max_attempts,
-        platform=platform)
+        platform_name=platform_name)
     
     prot = protein.from_pdb_string(ret["min_pdb"])
 
@@ -610,7 +610,6 @@ def get_initial_energies(pdb_strs: Sequence[str],
     A list of initial energies in the same order as pdb_strs.
   """
   exclude_residues = exclude_residues or []
-  s
     
   openmm_pdbs = [openmm_app.PDBFile(PdbStructure(io.StringIO(p)))
                  for p in pdb_strs]

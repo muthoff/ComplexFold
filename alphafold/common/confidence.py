@@ -104,6 +104,8 @@ def compute_predicted_aligned_error(
   return {
       'aligned_confidence_probs': aligned_confidence_probs,
       'predicted_aligned_error': predicted_aligned_error,
+      'pae_logits' : logits,
+      'pae_breaks' : breaks,
       'max_predicted_aligned_error': max_predicted_aligned_error,
   }
 
@@ -133,6 +135,7 @@ def predicted_tm_score(
   bin_centers = _calculate_bin_centers(breaks)
 
   num_res = np.sum(residue_weights)
+
   # Clip num_res to avoid negative/undefined d0.
   clipped_num_res = max(num_res, 19)
 
@@ -152,4 +155,5 @@ def predicted_tm_score(
 
   normed_residue_mask = residue_weights / (1e-8 + residue_weights.sum())
   per_alignment = np.sum(predicted_tm_term * normed_residue_mask, axis=-1)
+
   return np.asarray(per_alignment[(per_alignment * residue_weights).argmax()])

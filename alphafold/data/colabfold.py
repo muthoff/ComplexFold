@@ -281,7 +281,7 @@ def plot_paes(paes, model_names, Ls=None, dpi=100, fig=True):
     plt.subplot(1, num_models, n + 1)
     plt.title(model_name)
     Ln = pae.shape[0]
-    plt.imshow(pae, cmap="bwr", vmin=0, vmax=30, extent=(0, Ln, Ln, 0))
+    plt.imshow(pae, cmap="terrain", vmin=0, vmax=30, extent=(0, Ln, Ln, 0))
     if Ls is not None and len(Ls) > 1: plot_ticks(Ls)
     plt.colorbar()
   return plt
@@ -307,7 +307,7 @@ def plot_dists(dists, model_names, Ls=None, dpi=100, fig=True):
     plt.subplot(1, num_models, n + 1)
     plt.title(model_name)
     Ln = dist.shape[0]
-    plt.imshow(dist, extent=(0, Ln, Ln, 0))
+    plt.imshow(dist, extent=(0, Ln, Ln, 0), cmap="twilight")
     if Ls is not None and len(Ls) > 1: plot_ticks(Ls)
     plt.colorbar()
   return plt

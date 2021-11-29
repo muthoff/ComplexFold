@@ -263,7 +263,7 @@ class DataPipeline:
               msa_output_dir: str,
               heteromer_output_dir: str) -> FeatureDict:
     """Runs alignment tools on the input sequence and creates features."""
-    msa_depth = {'Uniref90': 0, 'MGnify': 0, 'Small BFD': 0, 'BFD-Uniclust': 0, 'Total unique': 0}
+    msa_depth = {}
 
     with open(input_fasta_path) as f:
       input_fasta_str = f.read()
@@ -278,6 +278,9 @@ class DataPipeline:
     template_search_results_collecter = templates.TemplateSearchResultsCollecter()
 
     for n, heteromer in enumerate(complex.heteromers):
+      for msa_type in ('Custom_sto', 'Custom_a3m', 'Uniref90', 'MGnify', 'Small BFD', 'BFD-Uniclust'):
+        msa_depth[f'{heteromer.description} - {msa_type}'] = 0
+
       msas_, deletion_matrices_ = [], []
 
       if heteromer.description == 'Peptide':
@@ -298,7 +301,7 @@ class DataPipeline:
             custom_msa, custom_deletion_matrix = parsers.parse_a3m(custom_alignment)
           msas_.append(custom_msa)
           deletion_matrices_.append(custom_deletion_matrix)
-          msa_depth[f'Custom_{type}'] += len(custom_msa)
+          msa_depth[f'{heteromer.description} - Custom_{type}'] += len(custom_msa)
 
       ## uniref90
       uniref90_alignment = self.get_msa(type='uniref90',
@@ -307,7 +310,7 @@ class DataPipeline:
       uniref90_msa, uniref90_deletion_matrix, _ = parsers.parse_stockholm(uniref90_alignment)
       msas_.append(uniref90_msa[:self.uniref_max_hits])
       deletion_matrices_.append(uniref90_deletion_matrix[:self.uniref_max_hits])
-      msa_depth['Uniref90'] += len(uniref90_msa[:self.uniref_max_hits])
+      msa_depth[f'{heteromer.description} - Uniref90'] += len(uniref90_msa[:self.uniref_max_hits])
 
       ## mgnify
       mgnify_alignment = self.get_msa(type='mgnify',
@@ -316,7 +319,7 @@ class DataPipeline:
       mgnify_msa, mgnify_deletion_matrix, _ = parsers.parse_stockholm(mgnify_alignment)
       msas_.append(mgnify_msa[:self.mgnify_max_hits])
       deletion_matrices_.append(mgnify_deletion_matrix[:self.mgnify_max_hits])
-      msa_depth['MGnify'] += len(mgnify_msa[:self.mgnify_max_hits])
+      msa_depth[f'{heteromer.description} - MGnify'] += len(mgnify_msa[:self.mgnify_max_hits])
           
       ## bfd
       if self._use_small_bfd:
@@ -326,7 +329,7 @@ class DataPipeline:
         bfd_msa, bfd_deletion_matrix, _ = parsers.parse_stockholm(small_bfd_alignment)
         msas_.append(bfd_msa)
         deletion_matrices_.append(bfd_deletion_matrix)
-        msa_depth['Small BFD'] += len(bfd_msa)
+        msa_depth[f'{heteromer.description} - Small BFD'] += len(bfd_msa)
 
       else:
         bfd_uniclust_alignment = self.get_msa(type='bfd_uniclust',
@@ -335,7 +338,7 @@ class DataPipeline:
         bfd_msa, bfd_deletion_matrix = parsers.parse_a3m(bfd_uniclust_alignment)
         msas_.append(bfd_msa)
         deletion_matrices_.append(bfd_deletion_matrix)
-        msa_depth['BFD-Uniclust'] += len(bfd_msa)
+        msa_depth[f'{heteromer.description} - BFD-Uniclust'] += len(bfd_msa)
 
       if len(complex.heteromers) == 1:
         msas = msas_
@@ -380,6 +383,10 @@ class DataPipeline:
         hits=parsers.parse_hhr(hhsearch_result))
       template_search_results_collecter.add(*result_templates)
 
+      for key,value in msa_depth.items():
+        if key.startswith(heteromer.description) and value > 0:
+          logging.info(f"{key.split('- ')[1]} size: {value} sequences")
+
     templates_result = template_search_results_collecter.get_result()
 
     sequence_features = make_sequence_features(
@@ -398,19 +405,12 @@ class DataPipeline:
         msas=msas_mod,
         deletion_matrices=deletion_matrices_mod)
 
-    msa_depth['Total unique of complex'] = int(msa_features['num_alignments'][0])
+    msa_depth['Final deduplicated MSA depth of complex'] = int(msa_features['num_alignments'][0])
 
-    if len(msas[0]) > 1:
-      plt = colabfold.plot_msas(msas, ':'.join(complex.heteromer_sequences))
-      plt.savefig(os.path.join(output_dir, 'msa_coverage.png'), bbox_inches='tight', dpi=300)
+    plt = colabfold.plot_msas(msas, ':'.join(complex.heteromer_sequences))
+    plt.savefig(os.path.join(output_dir, 'msa_coverage.png'), bbox_inches='tight', dpi=300)
 
-    logging.info('Uniref90 MSA size: %d sequences.', msa_depth['Uniref90'])
-    logging.info('MGnify MSA size: %d sequences.', msa_depth['MGnify'])
-    if self._use_small_bfd:
-      logging.info('Small BFD MSA size: %d sequences.', msa_depth['Small BFD'])
-    else:
-      logging.info('Big BFD MSA size: %d sequences.', msa_depth['BFD-Uniclust'])
-    logging.info('Final (deduplicated) MSA size of complex: %d sequences.', msa_features['num_alignments'][0])
+    logging.info('Final deduplicated MSA depth of complex: %d sequences', msa_depth['Final deduplicated MSA depth of complex'])
     logging.info('Total number of templates: %d (NB: This can include bad '
                  'templates and is later filtered down).',
                  templates_result.features['template_domain_names'].shape[0])

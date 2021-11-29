@@ -136,8 +136,11 @@ class RunModel:
     # already happening when computing get_confidence_metrics, and this ensures
     # all outputs are blocked on.
     jax.tree_map(lambda x: x.block_until_ready(), result)
+
     result.update(get_confidence_metrics(result))
     result['recycles'] = recycles
+
     #logging.info('Output shape was %s',
     #             tree.map_structure(lambda x: x.shape, result))
+
     return result

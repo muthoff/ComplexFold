@@ -16,9 +16,15 @@
 # https://github.com/deepmind/alphafold
 #
 #
-# Version 1.3
+# Version 1.4
 #
 # Change Notes
+#
+# v1.4:
+#  - Added run_reporter.py. This script read AF and CF pickled files and evaluates them.
+#  - Changed the pickled output so it contains logits and breaks for the calculation of a pTM for a subset of residues
+#  - Changed Result and Result_Handler so they also accept pickled results from AF
+#
 # v1.3:
 #  - Custom MSAs
 #  - Cap UniRef MSAs
@@ -40,11 +46,11 @@
 
 """Full AlphaFold protein structure prediction script."""
 import os
-import pathlib
 import pickle
 import random
 import sys
 import time
+import pathlib
 import subprocess
 from typing import Dict
 
@@ -140,7 +146,16 @@ RELAX_STIFFNESS = 10.0
 RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 20
 
-                    
+
+def _check_flag(flag_name: str,
+                other_flag_name: str,
+                should_be_set: bool):
+  if should_be_set != bool(FLAGS[flag_name].value):
+    verb = 'be' if should_be_set else 'not be'
+    raise ValueError(f'{flag_name} must {verb} set when running with '
+                     f'"--{other_flag_name}={FLAGS[other_flag_name].value}".')
+
+
 def predict_structure(
     fasta_path: str,
     fasta_name: str,
@@ -282,6 +297,12 @@ def main(argv):
     raise app.UsageError('Too many command-line arguments.')
       
   use_small_bfd = FLAGS.preset == 'reduced_dbs'
+  _check_flag('small_bfd_database_path', 'preset',
+              should_be_set=use_small_bfd)
+  _check_flag('bfd_database_path', 'preset',
+              should_be_set=not use_small_bfd)
+  _check_flag('uniclust30_database_path', 'preset',
+              should_be_set=not use_small_bfd)
 
   if FLAGS.preset in ('reduced_dbs', 'full_dbs'):
     num_ensemble = 1
@@ -377,7 +398,7 @@ def main(argv):
       stiffness=RELAX_STIFFNESS,
       exclude_residues=RELAX_EXCLUDE_RESIDUES,
       max_outer_iterations=RELAX_MAX_OUTER_ITERATIONS,
-      platform=FLAGS.amber_accel
+      platform_name=FLAGS.amber_accel
   )
     
   random_seeds = [int(i) for i in FLAGS.random_seeds]
