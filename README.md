@@ -37,7 +37,7 @@ pip3 install --upgrade jax jaxlib==0.1.69+cuda111 -f https://storage.googleapis.
 ```
 
 ### Update openmm 
-```bash
+```
 PYTHON=$(which python)
 cd $(dirname $(dirname $PYTHON))/lib/python3.8/site-packages
 patch -p0 < $CFDIR/docker/openmm.patch
@@ -45,8 +45,8 @@ patch -p0 < $CFDIR/docker/openmm.patch
 conda deactivate
 ```
 
-## Download of genetic databases
 
+## Download of genetic databases
 This step requires `aria2c` to be installed on your machine.
 
 AlphaFold needs multiple genetic (sequence) databases to run:
@@ -64,7 +64,7 @@ vesions:
 
 *   Default:
 
-    ```bash
+    ```
     scripts/download_all_data.sh <DOWNLOAD_DIR>
     ```
 
@@ -72,7 +72,7 @@ vesions:
 
 *   With `reduced_dbs`:
 
-    ```bash
+    ```
     scripts/download_all_data.sh <DOWNLOAD_DIR> reduced_dbs
     ```
 
@@ -119,8 +119,8 @@ $DOWNLOAD_DIR/                             # Total: ~ 2.2 TB (download: 438 GB)
 `bfd/` is only downloaded if you download the full databasees, and `small_bfd/`
 is only downloaded if you download the reduced databases.
 
-## Downloaf of model parameters
 
+## Downloaf of model parameters
 While the AlphaFold code is licensed under the Apache 2.0 License, the AlphaFold
 parameters are made available for non-commercial use only under the terms of the
 CC BY-NC 4.0 license. Please see the [Disclaimer](#license-and-disclaimer) below
@@ -138,15 +138,18 @@ will download parameters for:
     predicted aligned error values alongside their structure predictions (see
     Jumper et al. 2021, Suppl. Methods 1.9.7 for details).
 
+
 ## Final set up and simple run of ComplexFold
 1.  Go through the section "Defaults" in `ComplexFold/run_complexfold.sh` and change appropriatly
 2.  Run `run_complexfold.sh` pointing to a FASTA file containing the protein sequence
     for which you wish to predict the structure and a description line stating with '>'.
     You can provide multiple sequences per FASTA file in order to predict complexes.
 
-    ```bash
+    ```
     bash run_complexfold.sh -f path/to/fasta
     ```
+    
+
 
 ## Features
 ### FASTA file
@@ -181,6 +184,7 @@ This includes:
     which templates are finally used. These changes increase the likelihood of using a
     template specific for each heteromer though.
 
+
 ### MSA library and custom MSAs
 By default ComplexFold uses the same databases and tools like AlphaFold2.0. Three MSAs
 are computed for each heteromer individually and saved under the name of the tool and
@@ -194,11 +198,13 @@ for new predictions, like in varying complexes where one component is always the
 
 Please delete any files in the msa_library after updating the databases!
 
+
 ### Re-run-in-place
 You can re-run ComplexFold in the same ouput dir (`-o`) with differing parameters. All files
 there will be moved into a new subfolder called `result_n`, where `n` is the `n`-th run.
 Moreover, the `msa/` subfolder is searched for any matching MSA/template files. Appropriate
 files are read and missing ones are computed.
+
 
 ### Recycling
 AlphaFold uses its output and recycles the information into a new iteration of folding.
@@ -214,6 +220,7 @@ proteins. This happen even if the observed value drops below the set threshold.
 
 The smaller `<recycling_tolerance>` the more likely recycling happens exactly `<num_recycle>`
 times. `<recycling_tolerance>` is by default 0, usefull values are usually 0.25-0.33.
+
 
 ### Random seeds and sampling prediction multiple times
 AlphaFold utilises a random seed to initialize features for predictions and the predictins
@@ -231,10 +238,12 @@ run the prediction multiple times with all given models. Only the best 5 models,
 Keep in mind that the scores are themselves only prediction and this way predicted model may
 just have an erroneously high score.
 
+
 ### Small bfd
 You can either use the full bfd or the faster smaller one. `-p <preset>` where the argument is
 either `full_dbs` or `reduced_dbs`. This can especially help if the MSA gets too big (several GB) and
 HHBlits crashes. The MSAs often do not differ.
+
 
 ### Difficulty presets - thoroughness
 ComplexFold combines the listed features in difficulty presets: `-y <thoroughness>`. By default
@@ -244,6 +253,7 @@ ComplexFold uses "alphafold", which is equivalent to the original AlphaFold sett
 3. `medium`: `-r 10 -l 0.5 -x 5 -p full_dbs`
 4. `high`: `-r 15 -l 0.33 -x 20 -p full_dbs`
 5. `extreme`: `-r 20 -l 0.33 -x 30 -p full_dbs`
+
 
 ### Keep results with a good score in a certain region
 Once, I have got an a/b globular prediction which had always 10-15 amino acids unstructured. The
@@ -304,14 +314,68 @@ The contents of each output file are as follows:
     structure, after performing an Amber relaxation procedure on the unrelaxed
     structure prediction (see Jumper et al. 2021, Suppl. Methods 1.8.6 for
     details). `x` indicates the seed used, look it up in `report.json`.
-*   `model_*-sx.png` – Graphical representation of the model by ColabFold.
 *   `msa_coverage.png` – Coverage of the used MSAs by ColabFold.
-*   `PAE.png` – Predicted aligned error  by ColabFold.
-*   `predicted_contacts.png` – Predicted contacts by ColabFold.
-*   `predicted_distogram.png` – Predicted distogram  by ColabFold.
-*   `pLDDT.png` – pLDDT of each residue by ColabFold.
+*   `PAE.png` – The predicted aligned error.
+*   `pLDDT.png` – The predicted local distance difference test.
+*   `predicted_distogram.png` – The residue-pair representation (inter-residue distances) ranging from 
+    2 Å to 22 Å (64 bins).  
+*   `predicted_contacts.png` –  The probability of residue pairs being within 4.5 Å distance.  
+*   `model_*-sx.png` – 3D plot coloured from N- to C-terminus and by pLDDT:
+    *   `100`: Blue – Sidechains are accurate
+    *   `87`: Cyan – Mainchain is accurate
+    *   `75`: Green – Mainchain is ok
+    *   `62`: Orange – Potentially disordered
+    *   `50`: Red – Disordered
 *   `report.json` – A JSON format text file containing the scores, auxillary data,
     command arguments values.
+
+
+## run_reporter.py
+This script can evaluate (further) the outputs from AlphaFold and ComplexFold.
+As ComplexFold pickles more detailed data, not all options provided for ComplexFold
+are available with AlphaFold results. 
+
+
+### Report
+```
+python3 run_reported.py --report
+```
+Generates a report like ComplexFold provides by default. This does not contain all
+data if used on AlphaFold outputs. It usually contains the average pLDDT and pTM Scores.
+
+
+### Plots
+```
+python3 run_reported.py --plot
+```
+Genrates the default ComplexFold plots.
+*   `--dpi` can be given to change the default resolution of 300 dpi.
+*   `--model_names` restricts the output to that/these predictions. Possible names:
+    *   `model_i`
+    *   `model_i_ptm`
+    *   `model_i_multimer`
+    * Where `i` is the model number. 
+
+
+### diPTM
+```
+python3 run_reported.py --diptm <domains>
+``` 
+Output the dipTM Score (`dipTM_<domain>.json`) and a PAE plot where other region are 
+ploted with maximum error (i.e. as white). The dipTM is equivalent to the ipTM Score 
+(Evans et al. 2021) but the regions can the be specified. The AF2.1 ipTM is exclusiveley 
+calculated for the interfaces between chains. The dipTM (domain-ipTM) can for example 
+encompass two (or any number of) domains of one chain (or multiple). The PAE plot also 
+includes the indentity (region on the diagonal, i.e. self-Score) in addition to the 
+interface region (to the sides of the diaogonal).
+
+As argument a `"` space-separated list of domains is given. A domain is itself a comma-
+separated list of regions (think of a domain made from the N- and C-terminal part 
+of the protein) where each region is defined by a `start-end` pair.
+*   `--diptm "a-b c-d,e-f"`
+*   `a-b` – First domain
+*   `c-d,e-f` – Second domain, here constituted from two sequence regions
+
 
 
 ## Citing this work
@@ -327,6 +391,19 @@ Please refer to this github by Matthias Uthoff but also acknowledge by citing:
   number  = {7873},
   pages   = {583--589},
   doi     = {10.1038/s41586-021-03819-2}
+}
+```
+
+```bibtex
+@article {AlphaFold-Multimer2021,
+  author       = {Evans, Richard and O{\textquoteright}Neill, Michael and Pritzel, Alexander and Antropova, Natasha and Senior, Andrew and Green, Tim and {\v{Z}}{\'\i}dek, Augustin and Bates, Russ and Blackwell, Sam and Yim, Jason and Ronneberger, Olaf and Bodenstein, Sebastian and Zielinski, Michal and Bridgland, Alex and Potapenko, Anna and Cowie, Andrew and Tunyasuvunakool, Kathryn and Jain, Rishub and Clancy, Ellen and Kohli, Pushmeet and Jumper, John and Hassabis, Demis},
+  journal      = {bioRxiv}
+  title        = {Protein complex prediction with AlphaFold-Multimer},
+  year         = {2021},
+  elocation-id = {2021.10.04.463034},
+  doi          = {10.1101/2021.10.04.463034},
+  URL          = {https://www.biorxiv.org/content/early/2021/10/04/2021.10.04.463034},
+  eprint       = {https://www.biorxiv.org/content/early/2021/10/04/2021.10.04.463034.full.pdf},
 }
 ```
 

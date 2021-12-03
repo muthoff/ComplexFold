@@ -11,8 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.patheffects
-import logging
-    
+
 from string import ascii_uppercase,ascii_lowercase
 alphabet_list = list(ascii_uppercase+ascii_lowercase)
     
@@ -430,12 +429,12 @@ def plot_protein(protein=None, model_name=None, pos=None, plddt=None, Ls=None, d
 
   if plddt is not None:
     fig, (ax1, ax2) = plt.subplots(1, 2)
-    fig.set_figwidth(6);
+    fig.set_figwidth(6)
     fig.set_figheight(3.3)
     ax = [ax1, ax2]
   else:
     fig, ax1 = plt.subplots(1, 1)
-    fig.set_figwidth(3);
+    fig.set_figwidth(3)
     fig.set_figheight(3.3)
     ax = [ax1]
 

@@ -16,9 +16,17 @@
 # https://github.com/deepmind/alphafold
 #
 #
-# Version 1.4
+# Version 1.5
 #
 # Change Notes
+#
+# v1.5:
+#  - run_reported.py should not use vRAM anymore
+#  - run_reported.py can output plot for specified model
+#  - run_reported.py calculates the dipTM (domain-interaction pTM). It works like the ipTM but it compares specified
+#    regions even if they are on the same chain.
+#  - Changed the colour scheme of the plots
+#  - Introduced the ipTM
 #
 # v1.4:
 #  - Added run_reporter.py. This script read AF and CF pickled files and evaluates them.
@@ -242,6 +250,7 @@ def predict_structure(
                                             random_seed=random_seed,
                                             prediction_result=prediction_result,
                                             processed_feature_dict=processed_feature_dict,
+                                            Ls=result_handler.Ls,
                                             timing=t_diff))
       timings[f'Process, predict, compile - {model_name}'] = t_diff
       logging.info('Total %s predict time (+ compilation): %.0f', model_name, t_diff)
@@ -284,7 +293,7 @@ def predict_structure(
 
   # Plot data
   t_0 = time.time()
-  result_handler.plot(output_dir=output_dir)
+  result_handler.plot(output_dir=output_dir, model_names=result_handler.get_model_names())
   timings['Plotting'] = time.time() - t_0
   timings['Total [s]'] = time.time() - t_00
                                 

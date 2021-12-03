@@ -34,7 +34,7 @@ ROOT_DIR="${DOWNLOAD_DIR}/uniclust30"
 # Mirror of:
 # http://wwwuser.gwdg.de/~compbiol/uniclust/2018_08/uniclust30_2018_08_hhsuite.tar.gz
 #SOURCE_URL="https://storage.googleapis.com/alphafold-databases/casp14_versions/uniclust30_2018_08_hhsuite.tar.gz"
-SOURCE_URL="http://wwwuser.gwdg.de/~compbiol/uniclust/2021_06/UniRef30_2021_06_hhsuite.tar.gz"
+SOURCE_URL="http://wwwuser.gwdg.de/~compbiol/uniclust/2021_03/UniRef30_2021_03.tar.gz"
 BASENAME=$(basename "${SOURCE_URL}")
 
 mkdir --parents "${ROOT_DIR}"
