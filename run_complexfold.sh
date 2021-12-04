@@ -26,8 +26,9 @@ usage() {
         echo "-g <use_gpu>      Enable NVIDIA runtime to run with GPUs (default: True)"
         echo "-a <gpu_devices>  Comma separated list of devices to pass to 'CUDA_VISIBLE_DEVICES' (default: 0)"
         echo "-p <preset>       Choose preset model configuration - no ensembling and smaller genetic database config (reduced_dbs), no ensembling and full genetic database config  (full_dbs) or full genetic database config and 8 model ensemblings (casp14)"
-        echo "-u <amber_accel> Hardware used to carry out amber: Either CPU or CUDA. (default: CUDA)."
-        echo "-r <num_recycle> Number of recycling during prediction."
+        echo "-u <amber_accel>  Hardware used to carry out amber: Either CPU or CUDA. (default: CUDA)."
+        echo "-z <relax>        If given the output will not be relaxed."
+        echo "-r <num_recycle>  Number of recycling during prediction."
         echo "-l <recycling_tolerance> Tolerance for deciding when to stop recycling (Ca-RMS)."
         echo "-s <random_seeds> The random seed for the data pipeline, comma-separated list. By default, this is randomly generated. Note that even if this is set, Alphafold may still not be deterministic, because processes like GPU inference are nondeterministic."
         echo "-x <num_seeds> Number of random seeds to use."
@@ -88,8 +89,9 @@ amber_accel="CUDA"
 max_template_date=$( date +%Y-%m-%d )
 random_seeds=-1
 focus_region=""
-benchmark=false
 thoroughness=alphafold
+relax=true
+benchmark=false
 complex_mode=false
 write_features_models=false
 
@@ -108,7 +110,7 @@ kalign_binary_path=$(which kalign)
 
 
 
-while getopts "d:o:m:y:f:t:g:n:a:p:u:r:l:s:x:i:bcw" opt
+while getopts "d:o:m:y:f:t:g:n:a:p:u:r:l:s:x:i:zbcw" opt
 do
     case $opt in
         d)
@@ -158,6 +160,9 @@ do
             ;;
         i)
             focus_region=$OPTARG
+            ;;
+        z)
+            relax=false
             ;;
         b)
             benchmark=true
@@ -280,6 +285,7 @@ if [[ "$preset" == "reduced_dbs" ]]; then
     --benchmark=$benchmark \
     --write_features_models=$write_features_models \
     --amber_accel=$amber_accel \
+    --relax=$relax \
     --recycling_tolerance=$recycling_tolerance \
     --num_recycle=$num_recycle \
     --random_seeds=$random_seeds \
@@ -309,6 +315,7 @@ else
     --benchmark=$benchmark \
     --write_features_models=$write_features_models \
     --amber_accel=$amber_accel \
+    --relax=$relax \
     --recycling_tolerance=$recycling_tolerance \
     --num_recycle=$num_recycle \
     --random_seeds=$random_seeds \

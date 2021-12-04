@@ -27,6 +27,7 @@
 #    regions even if they are on the same chain.
 #  - Changed the colour scheme of the plots
 #  - Introduced the ipTM
+#  - Skip amber relaxation
 #
 # v1.4:
 #  - Added run_reporter.py. This script read AF and CF pickled files and evaluates them.
@@ -123,7 +124,8 @@ flags.DEFINE_list('random_seeds', [-1], 'The random seed for the data '
                      'that even if this is set, Alphafold may still not be '
                      'deterministic, because processes like GPU inference are '
                      'nondeterministic.')
-flags.DEFINE_integer('num_seeds', 1, 'Number of random seeds to during processing i.e. how often shall each model be run.', lower_bound=0)
+flags.DEFINE_integer('num_seeds', 1,
+                     'Number of random seeds to during processing i.e. how often shall each model be run.', lower_bound=0)
 flags.DEFINE_enum('preset', 'full_dbs',
                   ['reduced_dbs', 'full_dbs', 'casp14'],
                   'Choose preset model configuration - no ensembling and '
@@ -136,15 +138,14 @@ flags.DEFINE_boolean('benchmark', False, 'Run multiple JAX model evaluations '
                      'which should be more indicative of the time required for '
                      'inferencing many proteins.')
 flags.DEFINE_boolean('write_features_models', False, 'Write features.pkl and model resut pkls.')
-flags.DEFINE_enum('amber_accel', 'CPU',
-                    ['CPU', 'CUDA'],
-                    'Hardware used for Amber refinement.')
+flags.DEFINE_enum('amber_accel', 'CPU', ['CPU', 'CUDA'], 'Hardware used for Amber refinement.')
+flags.DEFINE_boolean('relax', True, 'Shall the output be relaxed with amber.')
 flags.DEFINE_integer('num_recycle', 10, 'Number of recycling during prediction.', lower_bound=0)
 flags.DEFINE_float('recycling_tolerance', 0.25, 'Tolerance for deciding when to stop recycling (Ca-RMS).', lower_bound=0)
-flags.DEFINE_list('focus_region', [], 'Focus on position x through y while deciding which result to keep. '
-                                        'Uses the mean pLDDT of that region. For complexes, concatenate '
-                                        'seqcuences and count from the very beginning.')
-                    
+flags.DEFINE_list('focus_region', [],
+                  'Focus on position x through y while deciding which result to keep. Uses the mean pLDDT of that '
+                  'region. For complexes, concatenate seqcuences and count from the very beginning.')
+
 FLAGS = flags.FLAGS
                     
 MAX_TEMPLATE_HITS = 20
@@ -279,14 +280,15 @@ def predict_structure(
       )
     
     # Relax the prediction.
-    t_0 = time.time()
-    relaxed_pdb_str, _, _ = amber_relaxer.process(prot=result.unrelaxed_protein)
-    timings[f'Relax {result.name}'] = time.time() - t_0
+    if amber_relaxer is not None:
+      t_0 = time.time()
+      relaxed_pdb_str, _, _ = amber_relaxer.process(prot=result.unrelaxed_protein)
+      timings[f'Relax {result.name}'] = time.time() - t_0
 
-    # Save the relaxed PDB.
-    relaxed_output_path = os.path.join(output_dir, f'relaxed_{result.name}.pdb')
-    with open(relaxed_output_path, 'w') as f:
-      f.write(relaxed_pdb_str)
+      # Save the relaxed PDB.
+      relaxed_output_path = os.path.join(output_dir, f'relaxed_{result.name}.pdb')
+      with open(relaxed_output_path, 'w') as f:
+        f.write(relaxed_pdb_str)
 
   # Pickle result handler
   result_handler.pickle(output_dir=output_dir)
@@ -401,14 +403,16 @@ def main(argv):
   logging.info('Have %d models: %s', len(model_runners),
                list(model_runners.keys()))
 
-  amber_relaxer = relax.AmberRelaxation(
-      max_iterations=RELAX_MAX_ITERATIONS,
-      tolerance=RELAX_ENERGY_TOLERANCE,
-      stiffness=RELAX_STIFFNESS,
-      exclude_residues=RELAX_EXCLUDE_RESIDUES,
-      max_outer_iterations=RELAX_MAX_OUTER_ITERATIONS,
-      platform_name=FLAGS.amber_accel
-  )
+  amber_relaxer = None
+  if FLAGS.relax:
+    amber_relaxer = relax.AmberRelaxation(
+        max_iterations=RELAX_MAX_ITERATIONS,
+        tolerance=RELAX_ENERGY_TOLERANCE,
+        stiffness=RELAX_STIFFNESS,
+        exclude_residues=RELAX_EXCLUDE_RESIDUES,
+        max_outer_iterations=RELAX_MAX_OUTER_ITERATIONS,
+        platform_name=FLAGS.amber_accel
+    )
     
   random_seeds = [int(i) for i in FLAGS.random_seeds]
   if random_seeds == [-1]:

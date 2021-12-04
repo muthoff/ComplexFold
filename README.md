@@ -271,7 +271,13 @@ and more a/b globular-folds which looked similar as the initial one but were dif
 Eventually, the initial predction was confirmed to be true by crystallisation, though.
 
 
-### AlphaFold output
+### Skip relaxing
+There are lots of proteins with huge unstructured regions. You should think about removing those 
+part from the sequence before predicting. The prediction itself ist somewhat fast anyway but 
+the relaxation can take 0.5-1 days! Alternatively you can skip the relaxation with the flag `-z`. 
+
+
+### ComplexFold output
 The outputs will be in a subfolder of `output_dir` named like the input FASTA file. It
 includes the computed MSAs, unrelaxed structures, relaxed structures, raw model outputs,
 some prediction metadata and a comprehensive report of given arguments, scores and timings.
