@@ -1,3 +1,4 @@
+#!/bin/bash
 # Description: AlphaFold non-docker version
 # Author: Matthias Uthoff
 
